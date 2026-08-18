@@ -19,7 +19,10 @@ function formatMoney(amount, currency = 'CAD') {
 export default function EventCard({ event, onRegister }) {
   const seatsLeft = event.capacity
     ? Math.max(Number(event.capacity) - Number(event.registration_count || 0), 0)
-    : null
+    : event.spots_left
+  const registrationAvailable =
+    event.registration_open !== false &&
+    (seatsLeft === null || seatsLeft === undefined || Number(seatsLeft) > 0)
 
   async function shareEvent() {
     const shareData = {
@@ -28,13 +31,19 @@ export default function EventCard({ event, onRegister }) {
       url: event.public_url,
     }
 
-    if (navigator.share) {
-      await navigator.share(shareData)
-      return
-    }
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        return
+      }
 
-    await navigator.clipboard.writeText(event.public_url)
-    window.alert('Lien copié.')
+      await navigator.clipboard.writeText(event.public_url)
+      window.alert('Lien copié.')
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        window.alert('Le partage direct n’est pas disponible dans ce navigateur.')
+      }
+    }
   }
 
   return (
@@ -71,7 +80,7 @@ export default function EventCard({ event, onRegister }) {
 
         {event.capacity ? (
           <div className="capacity-line">
-            <span>{event.registration_count || 0} inscrit(s)</span>
+            <span>{event.registration_count || 0} réservation(s)</span>
             <span>{seatsLeft} place(s) restante(s)</span>
           </div>
         ) : null}
@@ -91,8 +100,12 @@ export default function EventCard({ event, onRegister }) {
         </div>
 
         <div className="event-card__actions">
-          <button className="button button--primary" onClick={onRegister}>
-            S’inscrire / Register
+          <button
+            className="button button--primary"
+            onClick={onRegister}
+            disabled={!registrationAvailable}
+          >
+            {registrationAvailable ? 'S’inscrire / Register' : 'Inscriptions fermées / Closed'}
           </button>
           <button className="button button--secondary" onClick={shareEvent}>
             Partager / Share
