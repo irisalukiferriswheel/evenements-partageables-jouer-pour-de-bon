@@ -6,6 +6,7 @@ import {
   fetchEvents,
   getEventIdFromLocation,
   isApiConfigured,
+  isGuestRegistrationEnabled,
   normalizeEvent,
 } from './api.js'
 import {
@@ -23,6 +24,7 @@ export default function App() {
   const [registrationEvent, setRegistrationEvent] = useState(null)
   const [demoMode, setDemoMode] = useState(false)
   const [waitingForHost, setWaitingForHost] = useState(false)
+  const guestRegistrationEnabled = isGuestRegistrationEnabled()
 
   useEffect(() => {
     let cancelled = false
@@ -124,12 +126,13 @@ export default function App() {
           <EventCard
             key={event.id}
             event={event}
+            guestRegistrationEnabled={guestRegistrationEnabled}
             onRegister={() => setRegistrationEvent(event)}
           />
         ))}
       </section>
 
-      {registrationEvent ? (
+      {registrationEvent && guestRegistrationEnabled ? (
         <RegistrationPanel event={registrationEvent} onClose={() => setRegistrationEvent(null)} />
       ) : null}
     </main>
