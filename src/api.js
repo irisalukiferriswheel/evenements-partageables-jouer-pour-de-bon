@@ -1,3 +1,5 @@
+import { makeApiError } from './apiError.js'
+
 const API_BASE_URL = (import.meta.env.VITE_JPDB_API_BASE_URL || '').replace(/\/$/, '')
 const GUEST_REGISTRATION_ENABLED = import.meta.env.VITE_GUEST_REGISTRATION_ENABLED === 'true'
 const DETAIL_BATCH_SIZE = 6
@@ -170,7 +172,7 @@ export async function createGuestRegistration(eventId, participant) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw new Error(payload?.error || `Inscription impossible (${response.status})`)
+    throw makeApiError(payload, response.status, `Inscription impossible (${response.status})`)
   }
 
   return response.json()
@@ -194,7 +196,7 @@ export async function startCheckout(registrationId, guestToken) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw new Error(payload?.error || `Paiement impossible (${response.status})`)
+    throw makeApiError(payload, response.status, `Paiement impossible (${response.status})`)
   }
 
   return response.json()
