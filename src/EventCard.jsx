@@ -4,6 +4,7 @@ import {
   getRegistrationUnavailableReason,
   getSeatsLeft,
 } from './registrationState.js'
+import { buildEventShareData, getEventShareUrl } from './sharing.js'
 
 function formatDate(value) {
   if (!value) return ''
@@ -29,11 +30,8 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
   const unavailableReason = getRegistrationUnavailableReason(event)
 
   async function shareEvent() {
-    const shareData = {
-      title: event.title,
-      text: `${event.title} — ${event.cause?.name ? `au profit de ${event.cause.name}` : 'Jouer Pour de Bon'}`,
-      url: event.public_url,
-    }
+    const shareData = buildEventShareData(event)
+    const shareUrl = getEventShareUrl(event)
 
     try {
       if (navigator.share) {
@@ -41,8 +39,8 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
         return
       }
 
-      await navigator.clipboard.writeText(event.public_url)
-      window.alert('Lien copié.')
+      await navigator.clipboard.writeText(shareUrl)
+      window.alert('Lien d’inscription copié.')
     } catch (error) {
       if (error?.name !== 'AbortError') {
         window.alert('Le partage direct n’est pas disponible dans ce navigateur.')
