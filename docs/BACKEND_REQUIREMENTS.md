@@ -96,20 +96,34 @@ Example minor fields are carried inside the same `participant` object:
 
 The backend must derive `competitionId` and the cause from the event. The client must not send either value.
 
-The backend should atomically:
+The backend should:
 
 1. validate that the event is published, scheduled, and open for registration;
 2. derive the event's linked competition and organizer-selected cause;
 3. normalize the participant email and find one unambiguous existing player or create a minimal private player record;
 4. keep a newly created/matched player private by default; registration must not opt the player into the public directory;
-5. create the registration linked to that player;
-6. reject duplicate registration for the same player/event;
-7. return the registration plus a short-lived guest capability/token for the immediate checkout flow;
-8. allow the player to claim/activate and complete the profile later through the normal JPDB/Wix account flow.
+5. ensure that private player is linked to the canonical Supabase/Auth platform user used to own registrations;
+6. create the canonical registration with that `user_id`, the event-derived competition and the event-derived cause;
+7. reject duplicate registration for the same canonical user/competition and enforce capacity atomically at persistence time;
+8. return only a public-safe registration summary plus, when checkout is immediately available, a short-lived guest capability/token scoped to that registration;
+9. allow the player to claim/activate and complete the already-linked account/profile later through the normal JPDB/Wix account flow.
+
+This ownership model is not hypothetical: the existing Wix registration path already links `players.supabase_user_id` to a Supabase/Auth user, creates that Auth user with `email_confirm: false` when necessary, grants the participant role, and writes canonical registrations by `user_id`. Guest registration should reuse that same identity bridge instead of introducing a second ownership model.
 
 The frontend tells the participant that their email is used to create or match this private player record. A guest registration is not consent to publish a profile.
 
-The current canonical `registrations` table requires an Auth `user_id`, while the deployed `players` table is not yet fully represented by checked-in migrations. Do not implement guest registration by creating a parallel guest-registration table. First run the existing player-schema diagnostic against the real Supabase project, then evolve the canonical registration/player relationship with a migration.
+The deployed `players` table is still not fully represented by checked-in migrations, so the exact minimal-player insert must not be guessed. Run `supabase/diagnostics/guest_registration_schema.sql` against the real JPDB Supabase project before implementing that persistence port or any schema migration. Do not create a parallel guest-registration table.
+
+## Checkout handoff
+
+The existing `/v1/registrations/:id/checkout` route is an authenticated participant route. A public card must **not** call it with a bare registration id.
+
+A guest registration response may safely hand off payment in one of two ways:
+
+- return an immediate backend-created hosted `checkoutUrl`; or
+- return a short-lived guest capability/token scoped to the new registration, which the API explicitly accepts for guest checkout.
+
+If neither is present, the card treats the registration as received and does not attempt an authenticated checkout request. This prevents a public registration id from accidentally becoming an authorization mechanism.
 
 ## Minors
 
@@ -120,7 +134,8 @@ The current canonical `registrations` table requires an Auth `user_id`, while th
 - Never expose a Supabase service-role credential to the browser.
 - Keep all writes behind the JPDB API.
 - Rate-limit and abuse-protect public guest registration.
-- Do not expose email, phone, age details, guardian details, payment data, or private profile fields in public card responses.
+- Do not expose email, phone, age details, guardian details, payment data, internal player IDs, canonical Auth user IDs, or private profile fields in public card responses.
+- Do not reveal whether an anonymous email matched an existing player/account; collision and duplicate details should collapse to a generic public conflict response.
 - A guest checkout capability must be scoped to one registration, short lived, unguessable, and revocable/consumable; it must not become a general player credential.
 - Player matching by email must handle collisions/duplicates explicitly rather than attaching a registration to an arbitrary row.
 - After registrations/payments exist, changing an event cause should require an explicit protected workflow.
