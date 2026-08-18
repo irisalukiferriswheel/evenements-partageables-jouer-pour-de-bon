@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createGuestRegistration, startCheckout } from './api.js'
+import { getGuestRegistrationHandoff } from './registrationHandoff.js'
 
 const initialForm = {
   first_name: '',
@@ -32,23 +33,19 @@ export default function RegistrationPanel({ event, onClose }) {
 
     try {
       const payload = await createGuestRegistration(event.id, form)
-      const data = payload?.data ?? payload
-      const registration = data?.registration ?? data
-      const registrationId = registration?.id
-      const guestToken = data?.guestToken ?? data?.guest_token ?? null
-      const immediateCheckoutUrl = data?.checkout?.checkoutUrl ?? data?.checkout?.checkout_url ?? null
+      const handoff = getGuestRegistrationHandoff(payload)
 
-      if (immediateCheckoutUrl) {
-        window.location.assign(immediateCheckoutUrl)
+      if (handoff.kind === 'redirect') {
+        window.location.assign(handoff.checkoutUrl)
         return
       }
 
-      if (!registrationId) {
+      if (handoff.kind !== 'guest_checkout') {
         setStatus('success')
         return
       }
 
-      const checkoutPayload = await startCheckout(registrationId, guestToken)
+      const checkoutPayload = await startCheckout(handoff.registrationId, handoff.guestToken)
       const checkoutData = checkoutPayload?.data ?? checkoutPayload
       const checkoutUrl =
         checkoutData?.checkout?.checkoutUrl ??
