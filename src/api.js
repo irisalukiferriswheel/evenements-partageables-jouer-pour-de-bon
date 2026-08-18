@@ -185,13 +185,16 @@ export async function startCheckout(registrationId, guestToken) {
   if (!API_BASE_URL) {
     throw new Error('API non configurée')
   }
-
-  const headers = { Accept: 'application/json' }
-  if (guestToken) headers['X-JPDB-Guest-Token'] = guestToken
+  if (!guestToken || typeof guestToken !== 'string') {
+    throw new Error('Autorisation de paiement invitée manquante.')
+  }
 
   const response = await fetch(`${API_BASE_URL}/v1/registrations/${encodeURIComponent(registrationId)}/checkout`, {
     method: 'POST',
-    headers,
+    headers: {
+      Accept: 'application/json',
+      'X-JPDB-Guest-Token': guestToken,
+    },
   })
 
   if (!response.ok) {
