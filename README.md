@@ -32,6 +32,14 @@ Pour une vue Wix organisateur/admin, configurer aussi les origines exactes autor
 VITE_TRUSTED_HOST_ORIGINS=https://www.votre-site.ca,https://votre-site.ca
 ```
 
+L'inscription rapide reste désactivée tant que le backend guest-first n'est pas déployé :
+
+```text
+VITE_GUEST_REGISTRATION_ENABLED=false
+```
+
+Passer ce drapeau à `true` seulement après déploiement et validation de `POST /v1/calendar/events/:eventId/registrations` et du checkout invité associé. Cela permet de déployer les cartes/QR sans envoyer les visiteurs vers un endpoint inexistant.
+
 ## Modes d'affichage
 
 Une carte publique précise :
