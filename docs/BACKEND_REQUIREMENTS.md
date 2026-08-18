@@ -43,6 +43,18 @@ Representative response:
 
 The cause is chosen by the organizer. It must never be chosen or replaced by the participant during card registration.
 
+## QR registration URL
+
+Each rendered card creates its QR code locally in the React app. No external QR service is required.
+
+The QR points to the event's public URL with a stable registration intent marker:
+
+```text
+https://PUBLIC_EVENT_URL?register=1
+```
+
+If the API eventually returns an explicit `registrationUrl`, the frontend will prefer that value. Otherwise it derives the URL from the public event URL. Once guest registration is enabled, opening a single-event card with `register=1` opens the registration panel automatically. This keeps QR codes stable and shareable while the write endpoint remains independently feature-gated.
+
 ## Guest-first registration
 
 The QR/social registration path must not require login before registration/payment.
@@ -53,7 +65,7 @@ The frontend contract is:
 POST /v1/calendar/events/:eventId/registrations
 ```
 
-Example body:
+Example adult body:
 
 ```json
 {
@@ -70,6 +82,18 @@ Example body:
 }
 ```
 
+Example minor fields are carried inside the same `participant` object:
+
+```json
+{
+  "age_group": "under-18",
+  "guardian_name": "Parent ou tuteur",
+  "guardian_email": "guardian@example.com",
+  "guardian_phone": "+15145550000",
+  "guardian_consent": true
+}
+```
+
 The backend must derive `competitionId` and the cause from the event. The client must not send either value.
 
 The backend should atomically:
@@ -77,22 +101,26 @@ The backend should atomically:
 1. validate that the event is published, scheduled, and open for registration;
 2. derive the event's linked competition and organizer-selected cause;
 3. normalize the participant email and find one unambiguous existing player or create a minimal private player record;
-4. create the registration linked to that player;
-5. reject duplicate registration for the same player/event;
-6. return the registration plus a short-lived guest capability/token for the immediate checkout flow;
-7. allow the player to claim/activate the profile later through the normal JPDB/Wix account flow.
+4. keep a newly created/matched player private by default; registration must not opt the player into the public directory;
+5. create the registration linked to that player;
+6. reject duplicate registration for the same player/event;
+7. return the registration plus a short-lived guest capability/token for the immediate checkout flow;
+8. allow the player to claim/activate and complete the profile later through the normal JPDB/Wix account flow.
+
+The frontend tells the participant that their email is used to create or match this private player record. A guest registration is not consent to publish a profile.
 
 The current canonical `registrations` table requires an Auth `user_id`, while the deployed `players` table is not yet fully represented by checked-in migrations. Do not implement guest registration by creating a parallel guest-registration table. First run the existing player-schema diagnostic against the real Supabase project, then evolve the canonical registration/player relationship with a migration.
 
 ## Minors
 
-`age_group = under-18` must branch into a guardian/parental-consent flow before participation is considered confirmed.
+`age_group = under-18` branches into a guardian/parental-consent flow. Guardian identity/contact fields and affirmative guardian consent are required before the frontend can submit. Backend validation must enforce the same rule; client-side `required` fields are not a security boundary.
 
 ## Security
 
 - Never expose a Supabase service-role credential to the browser.
 - Keep all writes behind the JPDB API.
 - Rate-limit and abuse-protect public guest registration.
-- Do not expose email, phone, age details, payment data, or private profile fields in public card responses.
+- Do not expose email, phone, age details, guardian details, payment data, or private profile fields in public card responses.
 - A guest checkout capability must be scoped to one registration, short lived, unguessable, and revocable/consumable; it must not become a general player credential.
+- Player matching by email must handle collisions/duplicates explicitly rather than attaching a registration to an arbitrary row.
 - After registrations/payments exist, changing an event cause should require an explicit protected workflow.
