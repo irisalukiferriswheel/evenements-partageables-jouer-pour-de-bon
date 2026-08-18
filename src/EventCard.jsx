@@ -16,13 +16,14 @@ function formatMoney(amount, currency = 'CAD') {
   }).format(Number(amount || 0))
 }
 
-export default function EventCard({ event, onRegister }) {
+export default function EventCard({ event, onRegister, guestRegistrationEnabled = false }) {
   const seatsLeft = event.capacity
     ? Math.max(Number(event.capacity) - Number(event.registration_count || 0), 0)
     : event.spots_left
-  const registrationAvailable =
+  const eventAcceptsRegistrations =
     event.registration_open !== false &&
     (seatsLeft === null || seatsLeft === undefined || Number(seatsLeft) > 0)
+  const registrationAvailable = eventAcceptsRegistrations && guestRegistrationEnabled
 
   async function shareEvent() {
     const shareData = {
@@ -94,8 +95,8 @@ export default function EventCard({ event, onRegister }) {
             title={`QR code pour ${event.title}`}
           />
           <div>
-            <strong>Scanne pour t’inscrire</strong>
-            <span>Scan to register</span>
+            <strong>Scanne pour voir l’événement</strong>
+            <span>Scan to view this event</span>
           </div>
         </div>
 
@@ -104,8 +105,19 @@ export default function EventCard({ event, onRegister }) {
             className="button button--primary"
             onClick={onRegister}
             disabled={!registrationAvailable}
+            title={
+              !eventAcceptsRegistrations
+                ? 'Les inscriptions sont fermées pour cet événement.'
+                : !guestRegistrationEnabled
+                  ? 'L’inscription rapide sera activée avec le backend guest-first.'
+                  : undefined
+            }
           >
-            {registrationAvailable ? 'S’inscrire / Register' : 'Inscriptions fermées / Closed'}
+            {!eventAcceptsRegistrations
+              ? 'Inscriptions fermées / Closed'
+              : guestRegistrationEnabled
+                ? 'S’inscrire / Register'
+                : 'Inscription bientôt / Coming soon'}
           </button>
           <button className="button button--secondary" onClick={shareEvent}>
             Partager / Share
