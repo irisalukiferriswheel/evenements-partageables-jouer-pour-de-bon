@@ -1,26 +1,39 @@
 import { useEffect, useState } from 'react'
 import EventCard from './EventCard.jsx'
 import RegistrationPanel from './RegistrationPanel.jsx'
-import { fetchEvent } from './api.js'
+import { fetchEvent, fetchEvents, getEventIdFromLocation, isApiConfigured } from './api.js'
 import { mockEvent } from './mockEvent.js'
 
 export default function App() {
-  const [event, setEvent] = useState(null)
+  const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [registrationOpen, setRegistrationOpen] = useState(false)
+  const [registrationEvent, setRegistrationEvent] = useState(null)
+  const [demoMode, setDemoMode] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
       try {
-        const liveEvent = await fetchEvent()
-        if (!cancelled) setEvent(liveEvent || mockEvent)
+        if (!isApiConfigured()) {
+          if (!cancelled) {
+            setDemoMode(true)
+            setEvents([mockEvent])
+          }
+          return
+        }
+
+        const eventId = getEventIdFromLocation()
+        const liveEvents = eventId ? [await fetchEvent(eventId)] : await fetchEvents()
+
+        if (!cancelled) {
+          setEvents(liveEvents.filter(Boolean))
+        }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(error.message)
-          setEvent(mockEvent)
+          setLoadError(error.message || 'Impossible de charger les événements.')
+          setEvents([])
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -34,7 +47,11 @@ export default function App() {
   }, [])
 
   if (loading) {
-    return <main className="page-shell"><div className="loading-card">Chargement de l’événement…</div></main>
+    return (
+      <main className="page-shell">
+        <div className="loading-card">Chargement des événements…</div>
+      </main>
+    )
   }
 
   return (
@@ -47,18 +64,30 @@ export default function App() {
         <span className="page-header__badge">QR + partage social</span>
       </header>
 
-      {loadError ? (
+      {demoMode ? (
         <div className="demo-notice">
-          Mode démonstration — l’API n’a pas encore renvoyé cet événement. Le composant est prêt à recevoir les données réelles.
+          Mode démonstration — configure VITE_JPDB_API_BASE_URL pour charger les événements publiés de la base de données.
         </div>
       ) : null}
 
-      <section className="card-grid">
-        <EventCard event={event} onRegister={() => setRegistrationOpen(true)} />
+      {loadError ? <div className="error-box">{loadError}</div> : null}
+
+      {!loadError && events.length === 0 ? (
+        <div className="loading-card">Aucun événement publié à afficher.</div>
+      ) : null}
+
+      <section className="card-grid" aria-live="polite">
+        {events.map((event) => (
+          <EventCard
+            key={event.id}
+            event={event}
+            onRegister={() => setRegistrationEvent(event)}
+          />
+        ))}
       </section>
 
-      {registrationOpen ? (
-        <RegistrationPanel event={event} onClose={() => setRegistrationOpen(false)} />
+      {registrationEvent ? (
+        <RegistrationPanel event={registrationEvent} onClose={() => setRegistrationEvent(null)} />
       ) : null}
     </main>
   )
