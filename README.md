@@ -9,6 +9,7 @@ Application React + Vite qui transforme les événements Jouer Pour de Bon en ca
 - La cause affichée vient de l'événement créé par l'organisateur; le participant ne choisit pas la cause.
 - Le QR code est généré localement dans le navigateur avec `qrcode.react`; aucun service QR tiers n'est requis.
 - Le même lien sert au partage social et au scan téléphone-à-téléphone.
+- Le QR et le partage pointent vers la carte publique autonome, jamais vers une vue Wix organisateur/admin intégrée.
 - L'inscription est conçue guest-first; le backend doit ensuite créer ou rattacher le joueur et permettre l'activation ultérieure du profil.
 - Les vues organisateur/admin utilisent le même composant de carte, mais leurs données privées sont fournies par la page Wix hôte plutôt que par des secrets placés dans l'iframe.
 
@@ -24,7 +25,10 @@ Configurer :
 
 ```text
 VITE_JPDB_API_BASE_URL=https://votre-api-jpdb
+VITE_PUBLIC_CARD_BASE_URL=https://votre-hote-public/evenements-partageables-jouer-pour-de-bon/
 ```
+
+`VITE_PUBLIC_CARD_BASE_URL` est la racine publique et autonome de l'application de cartes. C'est cette URL qui est utilisée pour fabriquer les liens QR et de partage. Elle évite qu'une carte affichée dans un iframe `?scope=organizer` ou `?scope=admin` partage accidentellement l'URL de la vue intégrée. Si elle n'est pas configurée, l'application reprend son origine/chemin courant mais supprime les paramètres d'intégration avant d'ajouter `?event=<EVENT_ID>`.
 
 Pour une vue Wix organisateur/admin, configurer aussi les origines exactes autorisées :
 
@@ -46,6 +50,12 @@ Une carte publique précise :
 
 ```text
 http://localhost:5173/?event=<EVENT_ID>
+```
+
+Le lien QR/partage d'inscription ajoute :
+
+```text
+?event=<EVENT_ID>&register=1
 ```
 
 Sans `event`, l'application charge la collection publique card-ready depuis :
@@ -126,6 +136,8 @@ Les deux contrats sont card-ready et incluent la cause déjà résolue par le ba
 ```
 
 Pour la collection, `data` est un tableau de ces objets.
+
+Le frontend peut accepter un futur `cardUrl`/`registrationUrl` explicitement fourni par l'API. En l'absence de ces champs, il construit lui-même l'URL de carte autonome à partir de `VITE_PUBLIC_CARD_BASE_URL`; un éventuel `publicUrl` d'une page événement séparée est conservé comme métadonnée mais n'est pas utilisé pour le QR.
 
 ## Inscription guest-first
 
