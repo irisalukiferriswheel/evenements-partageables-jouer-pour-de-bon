@@ -24,6 +24,7 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
     event.registration_open !== false &&
     (seatsLeft === null || seatsLeft === undefined || Number(seatsLeft) > 0)
   const registrationAvailable = eventAcceptsRegistrations && guestRegistrationEnabled
+  const registrationUrl = event.registration_url || event.public_url
 
   async function shareEvent() {
     const shareData = {
@@ -88,15 +89,18 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
 
         <div className="qr-panel">
           <QRCodeSVG
-            value={event.public_url}
+            value={registrationUrl}
             size={176}
             level="M"
             marginSize={2}
-            title={`QR code pour ${event.title}`}
+            title={`QR code d’inscription pour ${event.title}`}
           />
           <div>
-            <strong>Scanne pour voir l’événement</strong>
-            <span>Scan to view this event</span>
+            <strong>Scanne pour t’inscrire</strong>
+            <span>Scan to register</span>
+            {!guestRegistrationEnabled && eventAcceptsRegistrations ? (
+              <small>L’inscription rapide sera activée dès que le backend guest-first sera déployé.</small>
+            ) : null}
           </div>
         </div>
 
