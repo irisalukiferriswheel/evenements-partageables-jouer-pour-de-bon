@@ -7,6 +7,24 @@ export function getEventIdFromLocation() {
   return params.get('event') || params.get('eventId')
 }
 
+export function isRegistrationIntentFromLocation() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('register') === '1' || params.get('action') === 'register'
+}
+
+export function buildRegistrationUrl(publicUrl) {
+  const fallback = window.location.href
+
+  try {
+    const url = new URL(publicUrl || fallback, fallback)
+    url.searchParams.set('register', '1')
+    return url.toString()
+  } catch {
+    const separator = String(publicUrl || fallback).includes('?') ? '&' : '?'
+    return `${publicUrl || fallback}${separator}register=1`
+  }
+}
+
 export function isApiConfigured() {
   return Boolean(API_BASE_URL)
 }
@@ -94,6 +112,10 @@ export function normalizeEvent(payload) {
     (id
       ? `${window.location.origin}${window.location.pathname}?event=${encodeURIComponent(id)}`
       : window.location.href)
+  const registrationUrl =
+    event.registrationUrl ||
+    event.registration_url ||
+    buildRegistrationUrl(publicUrl)
 
   return {
     ...event,
@@ -121,6 +143,7 @@ export function normalizeEvent(payload) {
     spots_left: event.spotsLeft ?? event.spots_left ?? null,
     registration_open: event.registrationOpen ?? event.registration_open ?? false,
     public_url: publicUrl,
+    registration_url: registrationUrl,
     cause,
   }
 }
