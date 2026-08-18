@@ -15,4 +15,4 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - run: npm install
-      - run: npm run build
+      - run: npm run check
