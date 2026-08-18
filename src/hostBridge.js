@@ -32,12 +32,16 @@ export function subscribeToHostEvents(onEvents) {
 export function requestHostEvents(scope) {
   if (!window.parent || window.parent === window) return
 
-  const targetOrigin = trustedOrigins.length === 1 ? trustedOrigins[0] : '*'
-  window.parent.postMessage(
-    {
-      type: 'jpdb:event-cards:request-events',
-      scope,
-    },
-    targetOrigin,
-  )
+  const message = {
+    type: 'jpdb:event-cards:request-events',
+    scope,
+  }
+
+  // Never use a wildcard target origin. When more than one Wix/custom-domain
+  // origin is trusted, send the same non-sensitive request once per explicit
+  // origin; the browser delivers it only to the origin that actually owns the
+  // parent window.
+  for (const targetOrigin of trustedOrigins) {
+    window.parent.postMessage(message, targetOrigin)
+  }
 }
