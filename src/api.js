@@ -1,4 +1,5 @@
 const API_BASE_URL = (import.meta.env.VITE_JPDB_API_BASE_URL || '').replace(/\/$/, '')
+const DETAIL_BATCH_SIZE = 6
 
 export function getEventIdFromLocation() {
   const params = new URLSearchParams(window.location.search)
@@ -37,7 +38,31 @@ export async function fetchEvents() {
 
   const payload = await response.json()
   const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
-  return rows.map(normalizeEvent).filter(Boolean)
+  const summaries = rows.map(normalizeEvent).filter(Boolean)
+
+  return hydratePublicEventDetails(summaries)
+}
+
+async function hydratePublicEventDetails(summaries) {
+  const hydrated = []
+
+  for (let index = 0; index < summaries.length; index += DETAIL_BATCH_SIZE) {
+    const batch = summaries.slice(index, index + DETAIL_BATCH_SIZE)
+    const details = await Promise.all(
+      batch.map(async (summary) => {
+        if (!summary.id) return summary
+
+        try {
+          return (await fetchEvent(summary.id)) || summary
+        } catch {
+          return summary
+        }
+      }),
+    )
+    hydrated.push(...details)
+  }
+
+  return hydrated
 }
 
 export function normalizeEvent(payload) {
