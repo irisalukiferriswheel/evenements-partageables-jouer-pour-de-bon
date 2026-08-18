@@ -1,0 +1,20 @@
+export const mockEvent = {
+  id: 'demo-basketball-sherbrooke',
+  title: 'Basketball Knockout',
+  description: 'Un événement amical de basketball au profit d’une cause locale.',
+  city: 'Sherbrooke',
+  venue_name: 'Parc local',
+  start_at: '2026-08-29T14:00:00-04:00',
+  entry_fee: 10,
+  currency: 'CAD',
+  capacity: 20,
+  registration_count: 12,
+  public_slug: 'basketball-knockout-sherbrooke-demo',
+  public_url: 'https://playingforgood.ca/e/basketball-knockout-sherbrooke-demo',
+  cause: {
+    id: 'cause-demo',
+    name: 'Maison des jeunes XYZ',
+    description: 'Cause choisie par l’organisateur pour cet événement.',
+    logo_url: null,
+  },
+}
