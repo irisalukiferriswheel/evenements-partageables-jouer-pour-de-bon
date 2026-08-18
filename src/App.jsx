@@ -1,7 +1,19 @@
 import { useEffect, useState } from 'react'
 import EventCard from './EventCard.jsx'
 import RegistrationPanel from './RegistrationPanel.jsx'
-import { fetchEvent, fetchEvents, getEventIdFromLocation, isApiConfigured } from './api.js'
+import {
+  fetchEvent,
+  fetchEvents,
+  getEventIdFromLocation,
+  isApiConfigured,
+  normalizeEvent,
+} from './api.js'
+import {
+  getHostScopeFromLocation,
+  hasTrustedHostOrigins,
+  requestHostEvents,
+  subscribeToHostEvents,
+} from './hostBridge.js'
 import { mockEvent } from './mockEvent.js'
 
 export default function App() {
@@ -10,9 +22,36 @@ export default function App() {
   const [loadError, setLoadError] = useState('')
   const [registrationEvent, setRegistrationEvent] = useState(null)
   const [demoMode, setDemoMode] = useState(false)
+  const [waitingForHost, setWaitingForHost] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    const hostScope = getHostScopeFromLocation()
+
+    if (hostScope) {
+      if (!hasTrustedHostOrigins()) {
+        setLoadError('Vue intégrée non configurée : VITE_TRUSTED_HOST_ORIGINS est requis.')
+        setLoading(false)
+        return undefined
+      }
+
+      setWaitingForHost(true)
+      setLoading(false)
+
+      const unsubscribe = subscribeToHostEvents((hostEvents) => {
+        if (cancelled) return
+        setEvents(hostEvents.map(normalizeEvent).filter(Boolean))
+        setLoadError('')
+        setWaitingForHost(false)
+      })
+
+      requestHostEvents(hostScope)
+
+      return () => {
+        cancelled = true
+        unsubscribe()
+      }
+    }
 
     async function load() {
       try {
@@ -70,10 +109,14 @@ export default function App() {
         </div>
       ) : null}
 
+      {waitingForHost ? (
+        <div className="loading-card">Chargement des événements autorisés depuis la page hôte…</div>
+      ) : null}
+
       {loadError ? <div className="error-box">{loadError}</div> : null}
 
-      {!loadError && events.length === 0 ? (
-        <div className="loading-card">Aucun événement publié à afficher.</div>
+      {!loadError && !waitingForHost && events.length === 0 ? (
+        <div className="loading-card">Aucun événement à afficher.</div>
       ) : null}
 
       <section className="card-grid" aria-live="polite">
