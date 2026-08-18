@@ -48,7 +48,13 @@ Une carte publique précise :
 http://localhost:5173/?event=<EVENT_ID>
 ```
 
-Sans `event`, l'application charge la collection publique depuis `GET /v1/events`.
+Sans `event`, l'application charge la collection publique card-ready depuis :
+
+```text
+GET /v1/calendar/events
+```
+
+La collection renvoie directement la cause et la disponibilité de chaque événement, donc le navigateur n'a pas besoin d'effectuer un appel de détail supplémentaire pour chaque carte.
 
 Sans API configurée, elle affiche uniquement la carte de démonstration afin de permettre le travail de design; une erreur API réelle ne bascule jamais silencieusement vers de fausses données.
 
@@ -89,10 +95,10 @@ GET /v1/calendar/events/:eventId
 La collection publique appelle :
 
 ```text
-GET /v1/events
+GET /v1/calendar/events
 ```
 
-Le détail public doit inclure la cause déjà résolue par le backend, par exemple :
+Les deux contrats sont card-ready et incluent la cause déjà résolue par le backend, par exemple :
 
 ```json
 {
@@ -118,6 +124,8 @@ Le détail public doit inclure la cause déjà résolue par le backend, par exem
   }
 }
 ```
+
+Pour la collection, `data` est un tableau de ces objets.
 
 ## Inscription guest-first
 
