@@ -7,6 +7,7 @@ import {
   getEventIdFromLocation,
   isApiConfigured,
   isGuestRegistrationEnabled,
+  isRegistrationIntentFromLocation,
   normalizeEvent,
 } from './api.js'
 import {
@@ -67,9 +68,20 @@ export default function App() {
 
         const eventId = getEventIdFromLocation()
         const liveEvents = eventId ? [await fetchEvent(eventId)] : await fetchEvents()
+        const availableEvents = liveEvents.filter(Boolean)
 
         if (!cancelled) {
-          setEvents(liveEvents.filter(Boolean))
+          setEvents(availableEvents)
+
+          if (
+            guestRegistrationEnabled &&
+            isRegistrationIntentFromLocation() &&
+            eventId &&
+            availableEvents.length === 1 &&
+            availableEvents[0].registration_open !== false
+          ) {
+            setRegistrationEvent(availableEvents[0])
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -85,7 +97,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [guestRegistrationEnabled])
 
   if (loading) {
     return (
