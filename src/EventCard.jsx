@@ -1,4 +1,9 @@
 import { QRCodeSVG } from 'qrcode.react'
+import {
+  eventAcceptsGuestRegistration,
+  getRegistrationUnavailableReason,
+  getSeatsLeft,
+} from './registrationState.js'
 
 function formatDate(value) {
   if (!value) return ''
@@ -17,14 +22,11 @@ function formatMoney(amount, currency = 'CAD') {
 }
 
 export default function EventCard({ event, onRegister, guestRegistrationEnabled = false }) {
-  const seatsLeft = event.capacity
-    ? Math.max(Number(event.capacity) - Number(event.registration_count || 0), 0)
-    : event.spots_left
-  const eventAcceptsRegistrations =
-    event.registration_open !== false &&
-    (seatsLeft === null || seatsLeft === undefined || Number(seatsLeft) > 0)
+  const seatsLeft = getSeatsLeft(event)
+  const eventAcceptsRegistrations = eventAcceptsGuestRegistration(event)
   const registrationAvailable = eventAcceptsRegistrations && guestRegistrationEnabled
   const registrationUrl = event.registration_url || event.public_url
+  const unavailableReason = getRegistrationUnavailableReason(event)
 
   async function shareEvent() {
     const shareData = {
@@ -74,8 +76,9 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
               <div className="cause-block__placeholder">♥</div>
             )}
             <div>
-              <strong>{event.cause?.name || 'Cause à confirmer'}</strong>
+              <strong>{event.cause?.name || 'Cause indisponible'}</strong>
               {event.cause?.description ? <p>{event.cause.description}</p> : null}
+              {!event.cause?.name ? <p>Inscription désactivée tant que la cause de l’événement n’est pas définie.</p> : null}
             </div>
           </div>
         </section>
@@ -96,11 +99,12 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
             title={`QR code d’inscription pour ${event.title}`}
           />
           <div>
-            <strong>Scanne pour t’inscrire</strong>
-            <span>Scan to register</span>
+            <strong>{eventAcceptsRegistrations ? 'Scanne pour t’inscrire' : 'Scanne pour voir l’événement'}</strong>
+            <span>{eventAcceptsRegistrations ? 'Scan to register' : 'Scan to view event'}</span>
             {!guestRegistrationEnabled && eventAcceptsRegistrations ? (
               <small>L’inscription rapide sera activée dès que le backend guest-first sera déployé.</small>
             ) : null}
+            {!eventAcceptsRegistrations && unavailableReason ? <small>{unavailableReason}</small> : null}
           </div>
         </div>
 
@@ -111,14 +115,14 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
             disabled={!registrationAvailable}
             title={
               !eventAcceptsRegistrations
-                ? 'Les inscriptions sont fermées pour cet événement.'
+                ? unavailableReason
                 : !guestRegistrationEnabled
                   ? 'L’inscription rapide sera activée avec le backend guest-first.'
                   : undefined
             }
           >
             {!eventAcceptsRegistrations
-              ? 'Inscriptions fermées / Closed'
+              ? 'Inscription indisponible'
               : guestRegistrationEnabled
                 ? 'S’inscrire / Register'
                 : 'Inscription bientôt / Coming soon'}
