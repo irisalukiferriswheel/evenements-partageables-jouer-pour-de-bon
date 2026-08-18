@@ -26,16 +26,31 @@ export default function RegistrationPanel({ event, onClose }) {
     setError('')
 
     try {
-      const registration = await createGuestRegistration(event.id, form)
-      const registrationId = registration.id ?? registration.registration?.id
+      const payload = await createGuestRegistration(event.id, form)
+      const data = payload?.data ?? payload
+      const registration = data?.registration ?? data
+      const registrationId = registration?.id
+      const guestToken = data?.guestToken ?? data?.guest_token ?? null
+      const immediateCheckoutUrl = data?.checkout?.checkoutUrl ?? data?.checkout?.checkout_url ?? null
+
+      if (immediateCheckoutUrl) {
+        window.location.assign(immediateCheckoutUrl)
+        return
+      }
 
       if (!registrationId) {
         setStatus('success')
         return
       }
 
-      const checkout = await startCheckout(registrationId)
-      const checkoutUrl = checkout.checkout_url ?? checkout.url
+      const checkoutPayload = await startCheckout(registrationId, guestToken)
+      const checkoutData = checkoutPayload?.data ?? checkoutPayload
+      const checkoutUrl =
+        checkoutData?.checkout?.checkoutUrl ??
+        checkoutData?.checkout?.checkout_url ??
+        checkoutData?.checkout_url ??
+        checkoutData?.url ??
+        null
 
       if (checkoutUrl) {
         window.location.assign(checkoutUrl)
@@ -101,6 +116,12 @@ export default function RegistrationPanel({ event, onClose }) {
                 </select>
               </label>
             </div>
+
+            {form.age_group === 'under-18' ? (
+              <div className="error-box">
+                L’inscription d’un mineur nécessitera le consentement d’un parent ou tuteur avant confirmation.
+              </div>
+            ) : null}
 
             <label className="checkbox-row">
               <input
