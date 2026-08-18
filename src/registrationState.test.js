@@ -4,6 +4,7 @@ import {
   eventAcceptsGuestRegistration,
   getRegistrationUnavailableReason,
   getSeatsLeft,
+  hasCanonicalOrganizerCause,
 } from './registrationState.js'
 
 function registrableEvent(overrides = {}) {
@@ -16,6 +17,7 @@ function registrableEvent(overrides = {}) {
     cause: {
       id: 'cause-1',
       name: 'Cause choisie par l’organisateur',
+      canonical: true,
     },
     ...overrides,
   }
@@ -39,8 +41,10 @@ test('uses API-provided spots_left when capacity is not exposed', () => {
   )
 })
 
-test('allows guest registration only when competition, organizer cause, registration state and capacity are valid', () => {
-  assert.equal(eventAcceptsGuestRegistration(registrableEvent()), true)
+test('allows guest registration only when competition, canonical organizer cause, registration state and capacity are valid', () => {
+  const event = registrableEvent()
+  assert.equal(hasCanonicalOrganizerCause(event), true)
+  assert.equal(eventAcceptsGuestRegistration(event), true)
 })
 
 test('rejects an event with no organizer-selected cause', () => {
@@ -50,6 +54,23 @@ test('rejects an event with no organizer-selected cause', () => {
   assert.equal(
     getRegistrationUnavailableReason(event),
     'La cause choisie par l’organisateur est manquante.',
+  )
+})
+
+test('rejects a legacy free-text cause that is not linked to the approved cause database', () => {
+  const event = registrableEvent({
+    cause: {
+      id: null,
+      name: 'Ancienne cause texte libre',
+      canonical: false,
+    },
+  })
+
+  assert.equal(hasCanonicalOrganizerCause(event), false)
+  assert.equal(eventAcceptsGuestRegistration(event), false)
+  assert.equal(
+    getRegistrationUnavailableReason(event),
+    'La cause de cet événement doit être reliée à une cause approuvée dans Jouer Pour de Bon.',
   )
 })
 
