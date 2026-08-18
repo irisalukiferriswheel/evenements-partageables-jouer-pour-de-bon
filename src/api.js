@@ -1,6 +1,8 @@
 import { makeApiError } from './apiError.js'
+import { buildStandaloneCardUrl } from './cardUrl.js'
 
 const API_BASE_URL = (import.meta.env.VITE_JPDB_API_BASE_URL || '').replace(/\/$/, '')
+const PUBLIC_CARD_BASE_URL = (import.meta.env.VITE_PUBLIC_CARD_BASE_URL || '').trim()
 const GUEST_REGISTRATION_ENABLED = import.meta.env.VITE_GUEST_REGISTRATION_ENABLED === 'true'
 
 export function getEventIdFromLocation() {
@@ -13,17 +15,21 @@ export function isRegistrationIntentFromLocation() {
   return params.get('register') === '1' || params.get('action') === 'register'
 }
 
-export function buildRegistrationUrl(publicUrl) {
-  const fallback = window.location.href
+export function buildPublicCardUrl(eventId) {
+  return buildStandaloneCardUrl({
+    eventId,
+    baseUrl: PUBLIC_CARD_BASE_URL,
+    currentUrl: window.location.href,
+  })
+}
 
-  try {
-    const url = new URL(publicUrl || fallback, fallback)
-    url.searchParams.set('register', '1')
-    return url.toString()
-  } catch {
-    const separator = String(publicUrl || fallback).includes('?') ? '&' : '?'
-    return `${publicUrl || fallback}${separator}register=1`
-  }
+export function buildRegistrationUrl(eventId) {
+  return buildStandaloneCardUrl({
+    eventId,
+    baseUrl: PUBLIC_CARD_BASE_URL,
+    currentUrl: window.location.href,
+    registrationIntent: true,
+  })
 }
 
 export function isApiConfigured() {
@@ -84,15 +90,13 @@ export function normalizeEvent(payload) {
 
   const id = event.id ?? event.public_slug
   const publicUrl =
-    event.publicUrl ||
-    event.public_url ||
-    (id
-      ? `${window.location.origin}${window.location.pathname}?event=${encodeURIComponent(id)}`
-      : window.location.href)
+    event.cardUrl ||
+    event.card_url ||
+    buildPublicCardUrl(id)
   const registrationUrl =
     event.registrationUrl ||
     event.registration_url ||
-    buildRegistrationUrl(publicUrl)
+    buildRegistrationUrl(id)
 
   return {
     ...event,
@@ -121,6 +125,7 @@ export function normalizeEvent(payload) {
     registration_open: event.registrationOpen ?? event.registration_open ?? false,
     public_url: publicUrl,
     registration_url: registrationUrl,
+    event_page_url: event.publicUrl ?? event.public_url ?? null,
     cause,
   }
 }
