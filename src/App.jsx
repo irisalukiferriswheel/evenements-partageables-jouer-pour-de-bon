@@ -16,6 +16,7 @@ import {
   requestHostEvents,
   subscribeToHostEvents,
 } from './hostBridge.js'
+import { eventAcceptsGuestRegistration } from './registrationState.js'
 import { mockEvent } from './mockEvent.js'
 
 export default function App() {
@@ -78,7 +79,7 @@ export default function App() {
             isRegistrationIntentFromLocation() &&
             eventId &&
             availableEvents.length === 1 &&
-            availableEvents[0].registration_open !== false
+            eventAcceptsGuestRegistration(availableEvents[0])
           ) {
             setRegistrationEvent(availableEvents[0])
           }
