@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import EventCard from './EventCard.jsx'
 import RegistrationPanel from './RegistrationPanel.jsx'
 import {
@@ -18,6 +18,11 @@ import {
 } from './hostBridge.js'
 import { eventAcceptsGuestRegistration } from './registrationState.js'
 import { mockEvent } from './mockEvent.js'
+import {
+  getViewPresentation,
+  sortEventsForDisplay,
+  summarizeEvents,
+} from './viewPresentation.js'
 
 export default function App() {
   const [events, setEvents] = useState([])
@@ -26,13 +31,18 @@ export default function App() {
   const [registrationEvent, setRegistrationEvent] = useState(null)
   const [demoMode, setDemoMode] = useState(false)
   const [waitingForHost, setWaitingForHost] = useState(false)
+  const [hostScope, setHostScope] = useState(null)
   const guestRegistrationEnabled = isGuestRegistrationEnabled()
+  const displayEvents = useMemo(() => sortEventsForDisplay(events), [events])
+  const view = getViewPresentation(hostScope)
+  const summary = useMemo(() => summarizeEvents(displayEvents), [displayEvents])
 
   useEffect(() => {
     let cancelled = false
-    const hostScope = getHostScopeFromLocation()
+    const detectedHostScope = getHostScopeFromLocation()
+    setHostScope(detectedHostScope)
 
-    if (hostScope) {
+    if (detectedHostScope) {
       if (!hasTrustedHostOrigins()) {
         setLoadError('Vue intégrée non configurée : VITE_TRUSTED_HOST_ORIGINS est requis.')
         setLoading(false)
@@ -49,7 +59,7 @@ export default function App() {
         setWaitingForHost(false)
       })
 
-      requestHostEvents(hostScope)
+      requestHostEvents(detectedHostScope)
 
       return () => {
         cancelled = true
@@ -113,10 +123,19 @@ export default function App() {
       <header className="page-header">
         <div>
           <span className="page-header__kicker">JOUER POUR DE BON · PLAYING FOR GOOD</span>
-          <h1>Événements partageables</h1>
+          <h1>{view.title}</h1>
         </div>
-        <span className="page-header__badge">QR + partage social</span>
+        <span className="page-header__badge">{view.badge}</span>
       </header>
+
+      {hostScope ? (
+        <section className="event-summary" aria-label="Résumé des événements">
+          <div><strong>{summary.total}</strong><span>événement(s)</span></div>
+          <div><strong>{summary.published}</strong><span>publié(s)</span></div>
+          <div><strong>{summary.open}</strong><span>inscriptions ouvertes</span></div>
+          <div><strong>{summary.registrations}</strong><span>inscription(s)</span></div>
+        </section>
+      ) : null}
 
       {demoMode ? (
         <div className="demo-notice">
@@ -128,14 +147,14 @@ export default function App() {
         <div className="loading-card">Chargement des événements autorisés depuis la page hôte…</div>
       ) : null}
 
-      {loadError ? <div className="error-box">{loadError}</div> : null}
+      {loadError ? <div className="error-box page-message">{loadError}</div> : null}
 
-      {!loadError && !waitingForHost && events.length === 0 ? (
-        <div className="loading-card">Aucun événement à afficher.</div>
+      {!loadError && !waitingForHost && displayEvents.length === 0 ? (
+        <div className="loading-card">{view.empty}</div>
       ) : null}
 
       <section className="card-grid" aria-live="polite">
-        {events.map((event) => (
+        {displayEvents.map((event) => (
           <EventCard
             key={event.id}
             event={event}
