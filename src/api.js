@@ -1,4 +1,5 @@
 const API_BASE_URL = (import.meta.env.VITE_JPDB_API_BASE_URL || '').replace(/\/$/, '')
+const GUEST_REGISTRATION_ENABLED = import.meta.env.VITE_GUEST_REGISTRATION_ENABLED === 'true'
 const DETAIL_BATCH_SIZE = 6
 
 export function getEventIdFromLocation() {
@@ -8,6 +9,10 @@ export function getEventIdFromLocation() {
 
 export function isApiConfigured() {
   return Boolean(API_BASE_URL)
+}
+
+export function isGuestRegistrationEnabled() {
+  return GUEST_REGISTRATION_ENABLED
 }
 
 export async function fetchEvent(eventId = getEventIdFromLocation()) {
@@ -121,6 +126,9 @@ export function normalizeEvent(payload) {
 }
 
 export async function createGuestRegistration(eventId, participant) {
+  if (!GUEST_REGISTRATION_ENABLED) {
+    throw new Error('Les inscriptions invitées ne sont pas encore activées.')
+  }
   if (!API_BASE_URL) {
     throw new Error('API non configurée')
   }
@@ -146,6 +154,9 @@ export async function createGuestRegistration(eventId, participant) {
 }
 
 export async function startCheckout(registrationId, guestToken) {
+  if (!GUEST_REGISTRATION_ENABLED) {
+    throw new Error('Les inscriptions invitées ne sont pas encore activées.')
+  }
   if (!API_BASE_URL) {
     throw new Error('API non configurée')
   }
