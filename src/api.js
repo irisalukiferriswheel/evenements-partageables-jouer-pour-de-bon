@@ -2,7 +2,6 @@ import { makeApiError } from './apiError.js'
 
 const API_BASE_URL = (import.meta.env.VITE_JPDB_API_BASE_URL || '').replace(/\/$/, '')
 const GUEST_REGISTRATION_ENABLED = import.meta.env.VITE_GUEST_REGISTRATION_ENABLED === 'true'
-const DETAIL_BATCH_SIZE = 6
 
 export function getEventIdFromLocation() {
   const params = new URLSearchParams(window.location.search)
@@ -53,7 +52,7 @@ export async function fetchEvent(eventId = getEventIdFromLocation()) {
 export async function fetchEvents() {
   if (!API_BASE_URL) return []
 
-  const response = await fetch(`${API_BASE_URL}/v1/events`, {
+  const response = await fetch(`${API_BASE_URL}/v1/calendar/events`, {
     headers: { Accept: 'application/json' },
   })
 
@@ -63,31 +62,7 @@ export async function fetchEvents() {
 
   const payload = await response.json()
   const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
-  const summaries = rows.map(normalizeEvent).filter(Boolean)
-
-  return hydratePublicEventDetails(summaries)
-}
-
-async function hydratePublicEventDetails(summaries) {
-  const hydrated = []
-
-  for (let index = 0; index < summaries.length; index += DETAIL_BATCH_SIZE) {
-    const batch = summaries.slice(index, index + DETAIL_BATCH_SIZE)
-    const details = await Promise.all(
-      batch.map(async (summary) => {
-        if (!summary.id) return summary
-
-        try {
-          return (await fetchEvent(summary.id)) || summary
-        } catch {
-          return summary
-        }
-      }),
-    )
-    hydrated.push(...details)
-  }
-
-  return hydrated
+  return rows.map(normalizeEvent).filter(Boolean)
 }
 
 export function normalizeEvent(payload) {
