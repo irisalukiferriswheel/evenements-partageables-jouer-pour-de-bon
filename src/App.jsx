@@ -72,7 +72,7 @@ export default function App() {
         if (!isApiConfigured()) {
           if (!cancelled) {
             setDemoMode(true)
-            setEvents([mockEvent])
+            setEvents([normalizeEvent(mockEvent)])
           }
           return
         }
