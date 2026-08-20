@@ -1,4 +1,10 @@
 import { QRCodeSVG } from 'qrcode.react'
+import {
+  eventAcceptsGuestRegistration,
+  getRegistrationUnavailableReason,
+  getSeatsLeft,
+} from './registrationState.js'
+import { buildEventShareData, getEventShareUrl } from './sharing.js'
 
 function formatDate(value) {
   if (!value) return ''
@@ -16,25 +22,30 @@ function formatMoney(amount, currency = 'CAD') {
   }).format(Number(amount || 0))
 }
 
-export default function EventCard({ event, onRegister }) {
-  const seatsLeft = event.capacity
-    ? Math.max(Number(event.capacity) - Number(event.registration_count || 0), 0)
-    : null
+export default function EventCard({ event, onRegister, guestRegistrationEnabled = false }) {
+  const seatsLeft = getSeatsLeft(event)
+  const eventAcceptsRegistrations = eventAcceptsGuestRegistration(event)
+  const registrationAvailable = eventAcceptsRegistrations && guestRegistrationEnabled
+  const registrationUrl = event.registration_url || event.public_url
+  const unavailableReason = getRegistrationUnavailableReason(event)
 
   async function shareEvent() {
-    const shareData = {
-      title: event.title,
-      text: `${event.title} — ${event.cause?.name ? `au profit de ${event.cause.name}` : 'Jouer Pour de Bon'}`,
-      url: event.public_url,
-    }
+    const shareData = buildEventShareData(event)
+    const shareUrl = getEventShareUrl(event)
 
-    if (navigator.share) {
-      await navigator.share(shareData)
-      return
-    }
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData)
+        return
+      }
 
-    await navigator.clipboard.writeText(event.public_url)
-    window.alert('Lien copié.')
+      await navigator.clipboard.writeText(shareUrl)
+      window.alert('Lien d’inscription copié.')
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        window.alert('Le partage direct n’est pas disponible dans ce navigateur.')
+      }
+    }
   }
 
   return (
@@ -63,36 +74,56 @@ export default function EventCard({ event, onRegister }) {
               <div className="cause-block__placeholder">♥</div>
             )}
             <div>
-              <strong>{event.cause?.name || 'Cause à confirmer'}</strong>
+              <strong>{event.cause?.name || 'Cause indisponible'}</strong>
               {event.cause?.description ? <p>{event.cause.description}</p> : null}
+              {!event.cause?.name ? <p>Inscription désactivée tant que la cause de l’événement n’est pas définie.</p> : null}
             </div>
           </div>
         </section>
 
         {event.capacity ? (
           <div className="capacity-line">
-            <span>{event.registration_count || 0} inscrit(s)</span>
+            <span>{event.registration_count || 0} réservation(s)</span>
             <span>{seatsLeft} place(s) restante(s)</span>
           </div>
         ) : null}
 
         <div className="qr-panel">
           <QRCodeSVG
-            value={event.public_url}
+            value={registrationUrl}
             size={176}
             level="M"
             marginSize={2}
-            title={`QR code pour ${event.title}`}
+            title={`QR code d’inscription pour ${event.title}`}
           />
           <div>
-            <strong>Scanne pour t’inscrire</strong>
-            <span>Scan to register</span>
+            <strong>{eventAcceptsRegistrations ? 'Scanne pour t’inscrire' : 'Scanne pour voir l’événement'}</strong>
+            <span>{eventAcceptsRegistrations ? 'Scan to register' : 'Scan to view event'}</span>
+            {!guestRegistrationEnabled && eventAcceptsRegistrations ? (
+              <small>L’inscription rapide sera activée dès que le backend guest-first sera déployé.</small>
+            ) : null}
+            {!eventAcceptsRegistrations && unavailableReason ? <small>{unavailableReason}</small> : null}
           </div>
         </div>
 
         <div className="event-card__actions">
-          <button className="button button--primary" onClick={onRegister}>
-            S’inscrire / Register
+          <button
+            className="button button--primary"
+            onClick={onRegister}
+            disabled={!registrationAvailable}
+            title={
+              !eventAcceptsRegistrations
+                ? unavailableReason
+                : !guestRegistrationEnabled
+                  ? 'L’inscription rapide sera activée avec le backend guest-first.'
+                  : undefined
+            }
+          >
+            {!eventAcceptsRegistrations
+              ? 'Inscription indisponible'
+              : guestRegistrationEnabled
+                ? 'S’inscrire / Register'
+                : 'Inscription bientôt / Coming soon'}
           </button>
           <button className="button button--secondary" onClick={shareEvent}>
             Partager / Share

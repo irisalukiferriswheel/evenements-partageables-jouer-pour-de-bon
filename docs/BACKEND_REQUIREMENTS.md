@@ -1,83 +1,141 @@
 # Backend requirements for shareable event cards
 
-The frontend is intentionally designed around the product decisions made for event cards. The current JPDB API registration contract predates those decisions and needs to evolve before real guest checkout is enabled.
+The event-card frontend consumes the shared JPDB API. It must not talk directly to Supabase or invent a second event, cause, player, or registration model.
 
-## Required public event response
+## Public event response
 
-`GET /v1/events/:id` should return a public-safe event representation including the organizer-selected cause already resolved by the backend.
+The existing public-safe detail route is:
 
-Minimum fields:
+```text
+GET /v1/calendar/events/:eventId
+```
+
+The card expects the organizer-selected cause to be resolved by the backend and returned with the event. The API may temporarily resolve the existing `events.cause_name` against an approved cause record, but the durable model should persist the canonical cause id selected by the organizer.
+
+Representative response:
 
 ```json
 {
-  "id": "uuid",
-  "title": "Basketball Knockout",
-  "description": "...",
-  "city": "Sherbrooke",
-  "venue_name": "Parc local",
-  "start_at": "2026-08-29T14:00:00-04:00",
-  "entry_fee": 10,
-  "currency": "CAD",
-  "capacity": 20,
-  "registration_count": 12,
-  "public_slug": "basketball-knockout-x72f",
-  "public_url": "https://playingforgood.ca/e/basketball-knockout-x72f",
-  "cause": {
+  "data": {
     "id": "uuid",
-    "name": "Maison des jeunes XYZ",
+    "competitionId": "uuid",
+    "title": "Basketball Knockout",
     "description": "...",
-    "logo_url": null
+    "city": "Sherbrooke",
+    "venue": "Parc local",
+    "startAt": "2026-08-29T18:00:00.000Z",
+    "feeAmount": 10,
+    "feeCurrency": "CAD",
+    "maxParticipants": 20,
+    "reservedCount": 12,
+    "spotsLeft": 8,
+    "registrationOpen": true,
+    "cause": {
+      "id": "uuid",
+      "name": "Maison des jeunes XYZ",
+      "description": "...",
+      "websiteUrl": null,
+      "canonical": true
+    }
   }
 }
 ```
 
-The cause is selected/created by the organizer when creating the event. It must not be selected by the participant during registration.
+The cause is chosen by the organizer. It must never be chosen or replaced by the participant during card registration.
+
+## QR registration URL
+
+Each rendered card creates its QR code locally in the React app. No external QR service is required.
+
+The QR points to the event's public URL with a stable registration intent marker:
+
+```text
+https://PUBLIC_EVENT_URL?register=1
+```
+
+If the API eventually returns an explicit `registrationUrl`, the frontend will prefer that value. Otherwise it derives the URL from the public event URL. Once guest registration is enabled, opening a single-event card with `register=1` opens the registration panel automatically. This keeps QR codes stable and shareable while the write endpoint remains independently feature-gated.
 
 ## Guest-first registration
 
-The social/QR registration path must not require an existing account before registration/payment.
+The QR/social registration path must not require login before registration/payment.
 
-The backend should accept the event plus participant identity fields, then atomically:
-
-1. validate that the event is open for registration;
-2. use the event's own `cause_id`;
-3. find an existing player by normalized verified identity (initially email, with collision safeguards) or create a minimal player record;
-4. create the event registration linked to that player;
-5. return the registration/payment next step;
-6. allow the player to activate/claim the account later and continue completing the profile on the main site.
-
-Suggested public endpoint shape (final naming may differ):
+The frontend contract is:
 
 ```text
-POST /v1/public/events/:eventId/registrations
+POST /v1/calendar/events/:eventId/registrations
 ```
 
-Example body:
+Example adult body:
 
 ```json
 {
-  "firstName": "Julie",
-  "lastName": "Tremblay",
-  "email": "julie@example.com",
-  "phone": "+15145551234",
-  "city": "Sherbrooke",
-  "ageGroup": "18+",
-  "waiverAccepted": true,
+  "participant": {
+    "first_name": "Julie",
+    "last_name": "Tremblay",
+    "email": "julie@example.com",
+    "phone": "+15145551234",
+    "city": "Sherbrooke",
+    "age_group": "18+",
+    "waiver_accepted": true
+  },
   "source": "shareable_event_card"
 }
 ```
 
-Do not accept `causeId` from this public form.
+Example minor fields are carried inside the same `participant` object:
+
+```json
+{
+  "age_group": "under-18",
+  "guardian_name": "Parent ou tuteur",
+  "guardian_email": "guardian@example.com",
+  "guardian_phone": "+15145550000",
+  "guardian_consent": true
+}
+```
+
+The backend must derive `competitionId` and the cause from the event. The client must not send either value.
+
+The backend should:
+
+1. validate that the event is published, scheduled, and open for registration;
+2. derive the event's linked competition and organizer-selected cause;
+3. normalize the participant email and find one unambiguous existing player or create a minimal private player record;
+4. keep a newly created/matched player private by default; registration must not opt the player into the public directory;
+5. ensure that private player is linked to the canonical Supabase/Auth platform user used to own registrations;
+6. create the canonical registration with that `user_id`, the event-derived competition and the event-derived cause;
+7. reject duplicate registration for the same canonical user/competition and enforce capacity atomically at persistence time;
+8. return only a public-safe registration summary plus, when checkout is immediately available, a short-lived guest capability/token scoped to that registration;
+9. allow the player to claim/activate and complete the already-linked account/profile later through the normal JPDB/Wix account flow.
+
+This ownership model is not hypothetical: the existing Wix registration path already links `players.supabase_user_id` to a Supabase/Auth user, creates that Auth user with `email_confirm: false` when necessary, grants the participant role, and writes canonical registrations by `user_id`. Guest registration should reuse that same identity bridge instead of introducing a second ownership model.
+
+The frontend tells the participant that their email is used to create or match this private player record. A guest registration is not consent to publish a profile.
+
+The deployed `players` table is still not fully represented by checked-in migrations, so the exact minimal-player insert must not be guessed. Run `supabase/diagnostics/guest_registration_schema.sql` against the real JPDB Supabase project before implementing that persistence port or any schema migration. Do not create a parallel guest-registration table.
+
+## Checkout handoff
+
+The existing `/v1/registrations/:id/checkout` route is an authenticated participant route. A public card must **not** call it with a bare registration id.
+
+A guest registration response may safely hand off payment in one of two ways:
+
+- return an immediate backend-created hosted `checkoutUrl`; or
+- return a short-lived guest capability/token scoped to the new registration, which the API explicitly accepts for guest checkout.
+
+If neither is present, the card treats the registration as received and does not attempt an authenticated checkout request. This prevents a public registration id from accidentally becoming an authorization mechanism.
 
 ## Minors
 
-`ageGroup = under-18` must branch into a guardian/parental-consent flow before participation is considered confirmed.
+`age_group = under-18` branches into a guardian/parental-consent flow. Guardian identity/contact fields and affirmative guardian consent are required before the frontend can submit. Backend validation must enforce the same rule; client-side `required` fields are not a security boundary.
 
 ## Security
 
-- Do not expose Supabase service-role credentials to the card app.
-- Keep writes behind the JPDB API.
-- Add abuse/rate-limit protections for public guest registration.
-- Do not expose email, phone, DOB/age details, payment data, or non-public profile fields in public event/card responses.
-- Prevent duplicate registration for the same player/event.
-- After registrations/payments exist, changing the event cause should require an explicit protected workflow.
+- Never expose a Supabase service-role credential to the browser.
+- Keep all writes behind the JPDB API.
+- Rate-limit and abuse-protect public guest registration.
+- Do not expose email, phone, age details, guardian details, payment data, internal player IDs, canonical Auth user IDs, or private profile fields in public card responses.
+- Do not reveal whether an anonymous email matched an existing player/account; collision and duplicate details should collapse to a generic public conflict response.
+- A guest checkout capability must be scoped to one registration, short lived, unguessable, and revocable/consumable; it must not become a general player credential.
+- Player matching by email must handle collisions/duplicates explicitly rather than attaching a registration to an arbitrary row.
+- After registrations/payments exist, changing an event cause should require an explicit protected workflow.

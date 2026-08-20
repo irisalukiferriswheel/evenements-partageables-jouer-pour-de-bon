@@ -39,6 +39,29 @@ button { cursor: pointer; }
 .page-header h1 { margin: 6px 0 0; font-size: clamp(28px, 4vw, 46px); color: #0f2f4f; }
 .page-header__badge { background: #fff; border: 1px solid #ccd9e1; padding: 8px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; }
 
+.event-summary {
+  width: min(1100px, 100%);
+  margin: -8px auto 22px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.event-summary div {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #d4e0e6;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .86);
+  box-shadow: 0 8px 24px rgba(15, 47, 79, .06);
+}
+
+.event-summary strong,
+.event-summary span { display: block; }
+.event-summary strong { color: #0f2f4f; font-size: 24px; line-height: 1; }
+.event-summary span { margin-top: 6px; color: #5a7180; font-size: 12px; font-weight: 750; }
+.page-message { width: min(1100px, 100%); margin: 0 auto 18px; }
+
 .card-grid { width: min(1100px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 22px; }
 
 .event-card {
@@ -109,6 +132,10 @@ input:focus, select:focus { border-color: #367084; box-shadow: 0 0 0 3px rgba(54
 .error-box, .success-box { padding: 14px; border-radius: 13px; }
 .error-box { background: #fff0f0; border: 1px solid #efc4c4; color: #8d2b2b; }
 .success-box { display: grid; gap: 5px; background: #eef8f1; border: 1px solid #c7e6d0; color: #245838; }
+
+@media (max-width: 760px) {
+  .event-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 @media (max-width: 620px) {
   .page-shell { padding: 16px 12px 36px; }
