@@ -147,3 +147,33 @@ export function getLanguageFromLocation() {
   const saved = localStorage.getItem('jpdb-language')
   return saved === 'en' ? 'en' : 'fr'
 }
+
+
+export function setSharedLanguage(language) {
+  if (language !== 'fr' && language !== 'en') return
+  localStorage.setItem('jpdb-language', language)
+
+  const url = new URL(window.location.href)
+  url.searchParams.set('lang', language)
+  window.history.replaceState({}, '', url)
+
+  if (window.parent !== window) {
+    let targetOrigin = '*'
+    try {
+      targetOrigin = new URL(document.referrer).origin
+    } catch {}
+    window.parent.postMessage({ type: 'JPDB_LANGUAGE_CHANGED', language }, targetOrigin)
+  }
+}
+
+export function subscribeToSharedLanguage(onLanguage) {
+  const receive = (event) => {
+    if (event.source !== window.parent) return
+    if (event.data?.type !== 'JPDB_LANGUAGE') return
+    if (event.data.language !== 'fr' && event.data.language !== 'en') return
+    localStorage.setItem('jpdb-language', event.data.language)
+    onLanguage(event.data.language)
+  }
+  window.addEventListener('message', receive)
+  return () => window.removeEventListener('message', receive)
+}
