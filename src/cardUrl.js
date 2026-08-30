@@ -3,6 +3,7 @@ export function buildStandaloneCardUrl({
   baseUrl = '',
   currentUrl = '',
   registrationIntent = false,
+  language = '',
 } = {}) {
   if (!eventId) return ''
 
@@ -14,6 +15,7 @@ export function buildStandaloneCardUrl({
     url.search = ''
     url.hash = ''
     url.searchParams.set('event', String(eventId))
+    if (language === 'fr' || language === 'en') url.searchParams.set('lang', language)
     if (registrationIntent) url.searchParams.set('register', '1')
     return url.toString()
   } catch {
