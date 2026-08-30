@@ -15,11 +15,18 @@ export function isRegistrationIntentFromLocation() {
   return params.get('register') === '1' || params.get('action') === 'register'
 }
 
+function currentLanguage() {
+  const requested = new URLSearchParams(window.location.search).get('lang')
+  if (requested === 'fr' || requested === 'en') return requested
+  return localStorage.getItem('jpdb-language') === 'en' ? 'en' : 'fr'
+}
+
 export function buildPublicCardUrl(eventId) {
   return buildStandaloneCardUrl({
     eventId,
     baseUrl: PUBLIC_CARD_BASE_URL,
     currentUrl: window.location.href,
+    language: currentLanguage(),
   })
 }
 
@@ -29,6 +36,7 @@ export function buildRegistrationUrl(eventId) {
     baseUrl: PUBLIC_CARD_BASE_URL,
     currentUrl: window.location.href,
     registrationIntent: true,
+    language: currentLanguage(),
   })
 }
 
