@@ -15,11 +15,18 @@ export function isRegistrationIntentFromLocation() {
   return params.get('register') === '1' || params.get('action') === 'register'
 }
 
+function currentLanguage() {
+  const requested = new URLSearchParams(window.location.search).get('lang')
+  if (requested === 'fr' || requested === 'en') return requested
+  return localStorage.getItem('jpdb-language') === 'en' ? 'en' : 'fr'
+}
+
 export function buildPublicCardUrl(eventId) {
   return buildStandaloneCardUrl({
     eventId,
     baseUrl: PUBLIC_CARD_BASE_URL,
     currentUrl: window.location.href,
+    language: currentLanguage(),
   })
 }
 
@@ -29,6 +36,7 @@ export function buildRegistrationUrl(eventId) {
     baseUrl: PUBLIC_CARD_BASE_URL,
     currentUrl: window.location.href,
     registrationIntent: true,
+    language: currentLanguage(),
   })
 }
 
@@ -40,30 +48,44 @@ export function isGuestRegistrationEnabled() {
   return GUEST_REGISTRATION_ENABLED
 }
 
-export async function fetchEvent(eventId = getEventIdFromLocation()) {
+export async function fetchEvent(eventId = getEventIdFromLocation(), language = 'fr') {
   if (!API_BASE_URL || !eventId) return null
 
-  const response = await fetch(`${API_BASE_URL}/v1/calendar/events/${encodeURIComponent(eventId)}`, {
-    headers: { Accept: 'application/json' },
+  const url = new URL(`${API_BASE_URL}/v1/calendar/events/${encodeURIComponent(eventId)}`)
+  url.searchParams.set('locale', language === 'en' ? 'en-CA' : 'fr-CA')
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': language === 'en' ? 'en-CA' : 'fr-CA',
+    },
   })
 
   if (!response.ok) {
-    throw new Error(`Impossible de charger l’événement (${response.status})`)
+    throw new Error(language === 'en'
+      ? `Unable to load the event (${response.status})`
+      : `Impossible de charger l’événement (${response.status})`)
   }
 
   const payload = await response.json()
   return normalizeEvent(payload)
 }
 
-export async function fetchEvents() {
+export async function fetchEvents(language = 'fr') {
   if (!API_BASE_URL) return []
 
-  const response = await fetch(`${API_BASE_URL}/v1/calendar/events`, {
-    headers: { Accept: 'application/json' },
+  const url = new URL(`${API_BASE_URL}/v1/calendar/events`)
+  url.searchParams.set('locale', language === 'en' ? 'en-CA' : 'fr-CA')
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': language === 'en' ? 'en-CA' : 'fr-CA',
+    },
   })
 
   if (!response.ok) {
-    throw new Error(`Impossible de charger les événements (${response.status})`)
+    throw new Error(language === 'en'
+      ? `Unable to load events (${response.status})`
+      : `Impossible de charger les événements (${response.status})`)
   }
 
   const payload = await response.json()
@@ -130,12 +152,14 @@ export function normalizeEvent(payload) {
   }
 }
 
-export async function createGuestRegistration(eventId, participant) {
+export async function createGuestRegistration(eventId, participant, language = 'fr') {
   if (!GUEST_REGISTRATION_ENABLED) {
-    throw new Error('Les inscriptions invitées ne sont pas encore activées.')
+    throw new Error(language === 'en'
+      ? 'Guest registration is not enabled yet.'
+      : 'Les inscriptions invitées ne sont pas encore activées.')
   }
   if (!API_BASE_URL) {
-    throw new Error('API non configurée')
+    throw new Error(language === 'en' ? 'API not configured' : 'API non configurée')
   }
 
   const response = await fetch(`${API_BASE_URL}/v1/calendar/events/${encodeURIComponent(eventId)}/registrations`, {
@@ -143,6 +167,7 @@ export async function createGuestRegistration(eventId, participant) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      'Accept-Language': language === 'en' ? 'en-CA' : 'fr-CA',
     },
     body: JSON.stringify({
       participant,
@@ -152,21 +177,31 @@ export async function createGuestRegistration(eventId, participant) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw makeApiError(payload, response.status, `Inscription impossible (${response.status})`)
+    throw makeApiError(
+      payload,
+      response.status,
+      language === 'en'
+        ? `Registration failed (${response.status})`
+        : `Inscription impossible (${response.status})`,
+    )
   }
 
   return response.json()
 }
 
-export async function startCheckout(registrationId, guestToken) {
+export async function startCheckout(registrationId, guestToken, language = 'fr') {
   if (!GUEST_REGISTRATION_ENABLED) {
-    throw new Error('Les inscriptions invitées ne sont pas encore activées.')
+    throw new Error(language === 'en'
+      ? 'Guest registration is not enabled yet.'
+      : 'Les inscriptions invitées ne sont pas encore activées.')
   }
   if (!API_BASE_URL) {
-    throw new Error('API non configurée')
+    throw new Error(language === 'en' ? 'API not configured' : 'API non configurée')
   }
   if (!guestToken || typeof guestToken !== 'string') {
-    throw new Error('Autorisation de paiement invitée manquante.')
+    throw new Error(language === 'en'
+      ? 'Guest payment authorization is missing.'
+      : 'Autorisation de paiement invitée manquante.')
   }
 
   const response = await fetch(`${API_BASE_URL}/v1/registrations/${encodeURIComponent(registrationId)}/checkout`, {
@@ -174,12 +209,19 @@ export async function startCheckout(registrationId, guestToken) {
     headers: {
       Accept: 'application/json',
       'X-JPDB-Guest-Token': guestToken,
+      'Accept-Language': language === 'en' ? 'en-CA' : 'fr-CA',
     },
   })
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw makeApiError(payload, response.status, `Paiement impossible (${response.status})`)
+    throw makeApiError(
+      payload,
+      response.status,
+      language === 'en'
+        ? `Payment failed (${response.status})`
+        : `Paiement impossible (${response.status})`,
+    )
   }
 
   return response.json()
