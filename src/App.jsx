@@ -18,6 +18,7 @@ import {
 } from './hostBridge.js'
 import { eventAcceptsGuestRegistration } from './registrationState.js'
 import { mockEvent } from './mockEvent.js'
+import { getLanguageFromLocation, translations } from './translations.js'
 import {
   getViewPresentation,
   sortEventsForDisplay,
@@ -25,6 +26,7 @@ import {
 } from './viewPresentation.js'
 
 export default function App() {
+  const [language, setLanguage] = useState(getLanguageFromLocation)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -33,9 +35,16 @@ export default function App() {
   const [waitingForHost, setWaitingForHost] = useState(false)
   const [hostScope, setHostScope] = useState(null)
   const guestRegistrationEnabled = isGuestRegistrationEnabled()
+  const t = translations[language]
   const displayEvents = useMemo(() => sortEventsForDisplay(events), [events])
-  const view = getViewPresentation(hostScope)
+  const view = getViewPresentation(hostScope, language)
   const summary = useMemo(() => summarizeEvents(displayEvents), [displayEvents])
+
+  useEffect(() => {
+    document.documentElement.lang = language
+    document.title = `${view.title} — ${language === 'fr' ? 'Jouer Pour de Bon' : 'Playing For Good'}`
+    localStorage.setItem('jpdb-language', language)
+  }, [language, view.title])
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +53,7 @@ export default function App() {
 
     if (detectedHostScope) {
       if (!hasTrustedHostOrigins()) {
-        setLoadError('Vue intégrée non configurée : VITE_TRUSTED_HOST_ORIGINS est requis.')
+        setLoadError(t.integratedNotConfigured)
         setLoading(false)
         return undefined
       }
@@ -78,7 +87,7 @@ export default function App() {
         }
 
         const eventId = getEventIdFromLocation()
-        const liveEvents = eventId ? [await fetchEvent(eventId)] : await fetchEvents()
+        const liveEvents = eventId ? [await fetchEvent(eventId, language)] : await fetchEvents(language)
         const availableEvents = liveEvents.filter(Boolean)
 
         if (!cancelled) {
@@ -96,7 +105,7 @@ export default function App() {
         }
       } catch (error) {
         if (!cancelled) {
-          setLoadError(error.message || 'Impossible de charger les événements.')
+          setLoadError(error.message || t.loadEventsError)
           setEvents([])
         }
       } finally {
@@ -108,64 +117,63 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [guestRegistrationEnabled])
-
-  if (loading) {
-    return (
-      <main className="page-shell">
-        <div className="loading-card">Chargement des événements…</div>
-      </main>
-    )
-  }
+  }, [guestRegistrationEnabled, language, t.integratedNotConfigured, t.loadEventsError])
 
   return (
     <main className="page-shell">
       <header className="page-header">
         <div>
-          <span className="page-header__kicker">JOUER POUR DE BON · PLAYING FOR GOOD</span>
+          <span className="page-header__kicker">{t.brand}</span>
           <h1>{view.title}</h1>
         </div>
-        <span className="page-header__badge">{view.badge}</span>
+        <div className="page-header__controls">
+          <span className="page-header__badge">{view.badge}</span>
+          <div className="language-switcher" role="group" aria-label={t.languageLabel}>
+            <button type="button" className={language === 'fr' ? 'is-active' : ''} aria-pressed={language === 'fr'} onClick={() => setLanguage('fr')}>FR</button>
+            <button type="button" className={language === 'en' ? 'is-active' : ''} aria-pressed={language === 'en'} onClick={() => setLanguage('en')}>EN</button>
+          </div>
+        </div>
       </header>
 
-      {hostScope ? (
-        <section className="event-summary" aria-label="Résumé des événements">
-          <div><strong>{summary.total}</strong><span>événement(s)</span></div>
-          <div><strong>{summary.published}</strong><span>publié(s)</span></div>
-          <div><strong>{summary.open}</strong><span>inscriptions ouvertes</span></div>
-          <div><strong>{summary.registrations}</strong><span>inscription(s)</span></div>
+      {loading ? <div className="loading-card">{t.loadingEvents}</div> : null}
+
+      {!loading && hostScope ? (
+        <section className="event-summary" aria-label={t.summaryLabel}>
+          <div><strong>{summary.total}</strong><span>{t.events}</span></div>
+          <div><strong>{summary.published}</strong><span>{t.published}</span></div>
+          <div><strong>{summary.open}</strong><span>{t.registrationsOpen}</span></div>
+          <div><strong>{summary.registrations}</strong><span>{t.registrations}</span></div>
         </section>
       ) : null}
 
-      {demoMode ? (
-        <div className="demo-notice">
-          Mode démonstration — configure VITE_JPDB_API_BASE_URL pour charger les événements publiés de la base de données.
-        </div>
-      ) : null}
+      {!loading && demoMode ? <div className="demo-notice">{t.demoNotice}</div> : null}
+      {!loading && waitingForHost ? <div className="loading-card">{t.waitingHost}</div> : null}
+      {!loading && loadError ? <div className="error-box page-message">{loadError}</div> : null}
 
-      {waitingForHost ? (
-        <div className="loading-card">Chargement des événements autorisés depuis la page hôte…</div>
-      ) : null}
-
-      {loadError ? <div className="error-box page-message">{loadError}</div> : null}
-
-      {!loadError && !waitingForHost && displayEvents.length === 0 ? (
+      {!loading && !loadError && !waitingForHost && displayEvents.length === 0 ? (
         <div className="loading-card">{view.empty}</div>
       ) : null}
 
-      <section className="card-grid" aria-live="polite">
-        {displayEvents.map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            guestRegistrationEnabled={guestRegistrationEnabled}
-            onRegister={() => setRegistrationEvent(event)}
-          />
-        ))}
-      </section>
+      {!loading ? (
+        <section className="card-grid" aria-live="polite">
+          {displayEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              language={language}
+              guestRegistrationEnabled={guestRegistrationEnabled}
+              onRegister={() => setRegistrationEvent(event)}
+            />
+          ))}
+        </section>
+      ) : null}
 
       {registrationEvent && guestRegistrationEnabled ? (
-        <RegistrationPanel event={registrationEvent} onClose={() => setRegistrationEvent(null)} />
+        <RegistrationPanel
+          event={registrationEvent}
+          language={language}
+          onClose={() => setRegistrationEvent(null)}
+        />
       ) : null}
     </main>
   )
