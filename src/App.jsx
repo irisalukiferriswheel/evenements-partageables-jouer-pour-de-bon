@@ -18,7 +18,12 @@ import {
 } from './hostBridge.js'
 import { eventAcceptsGuestRegistration } from './registrationState.js'
 import { mockEvent } from './mockEvent.js'
-import { getLanguageFromLocation, translations } from './translations.js'
+import {
+  getLanguageFromLocation,
+  setSharedLanguage,
+  subscribeToSharedLanguage,
+  translations,
+} from './translations.js'
 import {
   getViewPresentation,
   sortEventsForDisplay,
@@ -43,8 +48,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = language
     document.title = `${view.title} — ${language === 'fr' ? 'Jouer Pour de Bon' : 'Playing For Good'}`
-    localStorage.setItem('jpdb-language', language)
+    setSharedLanguage(language)
   }, [language, view.title])
+
+  useEffect(() => subscribeToSharedLanguage(setLanguage), [])
 
   useEffect(() => {
     let cancelled = false
