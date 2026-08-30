@@ -234,7 +234,7 @@ function formatMoney(amount, currency) {
 }
 
 function formatDeadline(value) {
-  if (!value) return '[date limite]'
+  if (!value) return 'la date limite de paiement de l’événement'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
   return new Intl.DateTimeFormat('fr-CA', {
