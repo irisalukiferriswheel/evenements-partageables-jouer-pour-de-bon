@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createGuestRegistration, startCheckout } from './api.js'
 import { getGuestRegistrationHandoff } from './registrationHandoff.js'
 import { getCauseContributionBalance } from './causeContributionBalance.js'
+import { translations } from './translations.js'
 
 const initialForm = {
   first_name: '',
@@ -17,10 +18,11 @@ const initialForm = {
   guardian_consent: false,
 }
 
-export default function RegistrationPanel({ event, onClose }) {
+export default function RegistrationPanel({ event, language = 'fr', onClose }) {
   const [form, setForm] = useState(initialForm)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
+  const t = translations[language]
   const isMinor = form.age_group === 'under-18'
   const contributionBalance = getCauseContributionBalance(event)
 
@@ -34,7 +36,7 @@ export default function RegistrationPanel({ event, onClose }) {
     setError('')
 
     try {
-      const payload = await createGuestRegistration(event.id, form)
+      const payload = await createGuestRegistration(event.id, form, language)
       const handoff = getGuestRegistrationHandoff(payload)
 
       if (handoff.kind === 'redirect') {
@@ -47,7 +49,7 @@ export default function RegistrationPanel({ event, onClose }) {
         return
       }
 
-      const checkoutPayload = await startCheckout(handoff.registrationId, handoff.guestToken)
+      const checkoutPayload = await startCheckout(handoff.registrationId, handoff.guestToken, language)
       const checkoutData = checkoutPayload?.data ?? checkoutPayload
       const checkoutUrl =
         checkoutData?.checkout?.checkoutUrl ??
@@ -63,7 +65,7 @@ export default function RegistrationPanel({ event, onClose }) {
 
       setStatus('success')
     } catch (err) {
-      setError(err.message || 'Une erreur est survenue.')
+      setError(err.message || t.genericError)
       setStatus('error')
     }
   }
@@ -77,145 +79,77 @@ export default function RegistrationPanel({ event, onClose }) {
         aria-labelledby="registration-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <button className="registration-panel__close" onClick={onClose} aria-label="Fermer">
-          ×
-        </button>
-        <div className="event-card__eyebrow">INSCRIPTION RAPIDE / QUICK REGISTRATION</div>
+        <button className="registration-panel__close" onClick={onClose} aria-label={t.close}>×</button>
+        <div className="event-card__eyebrow">{t.quickRegistration}</div>
         <h2 id="registration-title">{event.title}</h2>
-        <p className="registration-panel__cause">❤️ {event.cause?.name || 'Cause de l’événement'}</p>
-        <p>
-          L’inscription utilise ton courriel pour créer ou retrouver un dossier joueur privé. Il ne devient pas un profil public tant que tu ne l’actives pas plus tard sur le site.
-        </p>
+        <p className="registration-panel__cause">❤️ {event.cause?.name || t.eventCause}</p>
+        <p>{t.privacy}</p>
 
         {contributionBalance.incomplete ? (
-          <CauseContributionNotice balance={contributionBalance} />
+          <CauseContributionNotice balance={contributionBalance} language={language} />
         ) : null}
 
         {status === 'success' ? (
           <div className="success-box">
-            <strong>Inscription reçue.</strong>
-            <span>Ton dossier joueur pourra être réclamé et complété plus tard sur le site.</span>
+            <strong>{t.received}</strong>
+            <span>{t.claimLater}</span>
           </div>
         ) : (
           <form onSubmit={submit} className="registration-form">
             <div className="form-grid">
-              <label>
-                Prénom
-                <input
-                  autoComplete="given-name"
-                  required
-                  value={form.first_name}
-                  onChange={(e) => update('first_name', e.target.value)}
-                />
-              </label>
-              <label>
-                Nom
-                <input
-                  autoComplete="family-name"
-                  required
-                  value={form.last_name}
-                  onChange={(e) => update('last_name', e.target.value)}
-                />
-              </label>
-              <label>
-                Courriel
-                <input
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => update('email', e.target.value)}
-                />
-              </label>
-              <label>
-                Téléphone
-                <input
-                  type="tel"
-                  autoComplete="tel"
-                  required
-                  value={form.phone}
-                  onChange={(e) => update('phone', e.target.value)}
-                />
-              </label>
-              <label>
-                Ville
-                <input
-                  autoComplete="address-level2"
-                  value={form.city}
-                  onChange={(e) => update('city', e.target.value)}
-                />
-              </label>
-              <label>
-                Âge
+              <Field label={t.firstName}>
+                <input autoComplete="given-name" required value={form.first_name} onChange={(e) => update('first_name', e.target.value)} />
+              </Field>
+              <Field label={t.lastName}>
+                <input autoComplete="family-name" required value={form.last_name} onChange={(e) => update('last_name', e.target.value)} />
+              </Field>
+              <Field label={t.email}>
+                <input type="email" autoComplete="email" required value={form.email} onChange={(e) => update('email', e.target.value)} />
+              </Field>
+              <Field label={t.phone}>
+                <input type="tel" autoComplete="tel" required value={form.phone} onChange={(e) => update('phone', e.target.value)} />
+              </Field>
+              <Field label={t.city}>
+                <input autoComplete="address-level2" value={form.city} onChange={(e) => update('city', e.target.value)} />
+              </Field>
+              <Field label={t.age}>
                 <select value={form.age_group} onChange={(e) => update('age_group', e.target.value)}>
                   <option value="18+">18+</option>
-                  <option value="under-18">Moins de 18 ans</option>
+                  <option value="under-18">{t.under18}</option>
                 </select>
-              </label>
+              </Field>
             </div>
 
             {isMinor ? (
               <>
-                <div className="error-box">
-                  L’inscription d’un mineur doit être confirmée par un parent ou tuteur.
-                </div>
+                <div className="error-box">{t.minorConfirmation}</div>
                 <div className="form-grid">
-                  <label>
-                    Parent ou tuteur
-                    <input
-                      autoComplete="name"
-                      required
-                      value={form.guardian_name}
-                      onChange={(e) => update('guardian_name', e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Courriel du parent/tuteur
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={form.guardian_email}
-                      onChange={(e) => update('guardian_email', e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Téléphone du parent/tuteur
-                    <input
-                      type="tel"
-                      autoComplete="tel"
-                      required
-                      value={form.guardian_phone}
-                      onChange={(e) => update('guardian_phone', e.target.value)}
-                    />
-                  </label>
+                  <Field label={t.guardian}>
+                    <input autoComplete="name" required value={form.guardian_name} onChange={(e) => update('guardian_name', e.target.value)} />
+                  </Field>
+                  <Field label={t.guardianEmail}>
+                    <input type="email" autoComplete="email" required value={form.guardian_email} onChange={(e) => update('guardian_email', e.target.value)} />
+                  </Field>
+                  <Field label={t.guardianPhone}>
+                    <input type="tel" autoComplete="tel" required value={form.guardian_phone} onChange={(e) => update('guardian_phone', e.target.value)} />
+                  </Field>
                 </div>
                 <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    required
-                    checked={form.guardian_consent}
-                    onChange={(e) => update('guardian_consent', e.target.checked)}
-                  />
-                  <span>Je suis le parent ou tuteur et j’autorise cette inscription selon les règles applicables à l’événement.</span>
+                  <input type="checkbox" required checked={form.guardian_consent} onChange={(e) => update('guardian_consent', e.target.checked)} />
+                  <span>{t.guardianConsent}</span>
                 </label>
               </>
             ) : (
               <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  required
-                  checked={form.waiver_accepted}
-                  onChange={(e) => update('waiver_accepted', e.target.checked)}
-                />
-                <span>J’accepte les règles et la décharge de participation applicables à cet événement.</span>
+                <input type="checkbox" required checked={form.waiver_accepted} onChange={(e) => update('waiver_accepted', e.target.checked)} />
+                <span>{t.waiver}</span>
               </label>
             )}
 
             {error ? <div className="error-box">{error}</div> : null}
 
             <button className="button button--primary button--wide" disabled={status === 'submitting'}>
-              {status === 'submitting' ? 'Traitement…' : 'Continuer vers le paiement'}
+              {status === 'submitting' ? t.processing : t.continuePayment}
             </button>
           </form>
         )}
@@ -224,47 +158,42 @@ export default function RegistrationPanel({ event, onClose }) {
   )
 }
 
+function Field({ label, children }) {
+  return <label>{label}{children}</label>
+}
 
-function formatMoney(amount, currency) {
-  return Number(amount || 0).toLocaleString('fr-CA', {
+function formatMoney(amount, currency, locale) {
+  return Number(amount || 0).toLocaleString(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
   })
 }
 
-function formatDeadline(value) {
-  if (!value) return 'la date limite de paiement de l’événement'
+function formatDeadline(value, t) {
+  if (!value) return t.fallbackDeadline
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
-  return new Intl.DateTimeFormat('fr-CA', {
+  return new Intl.DateTimeFormat(t.locale, {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(date)
 }
 
-function CauseContributionNotice({ balance }) {
-  const required = formatMoney(balance.requiredCauseContribution, balance.currency)
-  const credited = formatMoney(balance.creditedCauseContribution, balance.currency)
-  const remaining = formatMoney(balance.remainingRegistrationBalance, balance.currency)
-  const causePart = formatMoney(balance.causeDifference, balance.currency)
-  const winnerPart = formatMoney(balance.winnerAllocationDifference, balance.currency)
+function CauseContributionNotice({ balance, language }) {
+  const t = translations[language]
+  const required = formatMoney(balance.requiredCauseContribution, balance.currency, t.locale)
+  const credited = formatMoney(balance.creditedCauseContribution, balance.currency, t.locale)
+  const remaining = formatMoney(balance.remainingRegistrationBalance, balance.currency, t.locale)
+  const causePart = formatMoney(balance.causeDifference, balance.currency, t.locale)
+  const winnerPart = formatMoney(balance.winnerAllocationDifference, balance.currency, t.locale)
 
   return (
     <section className="cause-contribution-notice" aria-labelledby="cause-contribution-title">
-      <strong id="cause-contribution-title">Contribution à la cause incomplète</strong>
-      <p>
-        Chaque joueur de cet événement contribuant à cette cause doit verser <b>{required}</b> à la cause.
-        Tu as contribué <b>{credited}</b>.
-      </p>
-      <p>
-        Ton solde d’inscription restant est de <b>{remaining}</b> : <b>{causePart}</b> pour la cause
-        et <b>{winnerPart}</b> pour la part destinée aux joueurs gagnants.
-      </p>
-      <p>
-        Le paiement est requis avant le <b>{formatDeadline(balance.paymentDeadline)}</b> pour participer
-        à cet événement et au résultat de l’objectif de financement une fois celui-ci atteint.
-      </p>
+      <strong id="cause-contribution-title">{t.contributionIncomplete}</strong>
+      <p>{t.contributionRule(required, credited)}</p>
+      <p>{t.balanceRule(remaining, causePart, winnerPart)}</p>
+      <p>{t.deadlineRule(formatDeadline(balance.paymentDeadline, t))}</p>
     </section>
   )
 }
