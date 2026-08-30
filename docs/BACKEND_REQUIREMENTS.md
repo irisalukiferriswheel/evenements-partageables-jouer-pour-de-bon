@@ -139,3 +139,34 @@ If neither is present, the card treats the registration as received and does not
 - A guest checkout capability must be scoped to one registration, short lived, unguessable, and revocable/consumable; it must not become a general player credential.
 - Player matching by email must handle collisions/duplicates explicitly rather than attaching a registration to an arbitrary row.
 - After registrations/payments exist, changing an event cause should require an explicit protected workflow.
+
+
+## Solde de contribution à la cause par événement
+
+L’égalité s’applique aux joueurs d’un même événement. Plusieurs événements peuvent soutenir la même cause avec des frais d’inscription différents. Pour chaque événement, 50 % du prix uniforme d’inscription revient à la cause et 50 % à la part destinée aux joueurs gagnants.
+
+Les réponses d’inscription ou de paiement destinées au joueur peuvent fournir :
+
+```json
+{
+  "requiredCauseContribution": 20,
+  "creditedCauseContribution": 15,
+  "remainingRegistrationBalance": 10,
+  "causeDifference": 5,
+  "winnerAllocationDifference": 5,
+  "paymentDeadline": "2026-09-15T23:59:59-04:00",
+  "currency": "CAD"
+}
+```
+
+Invariants côté serveur :
+
+- `requiredCauseContribution = registrationFee / 2`;
+- tous les joueurs du même événement ont le même prix d’inscription;
+- `causeDifference = max(requiredCauseContribution - creditedCauseContribution, 0)`;
+- la portion restante destinée aux gagnants est égale à la portion restante destinée à la cause;
+- un joueur incomplet ne devient pas admissible avant paiement complet;
+- les montants sont calculés côté API à partir des paiements confirmés, jamais à partir de valeurs choisies par le navigateur;
+- les frais et contributions d’un autre événement ne servent jamais de référence, même si cet événement soutient la même cause.
+
+Le client affiche « Contribution à la cause incomplète » seulement lorsque l’API indique un écart positif. La base publique ne doit recevoir aucun solde privé de joueur.
