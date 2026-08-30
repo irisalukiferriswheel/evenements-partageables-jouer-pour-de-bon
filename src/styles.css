@@ -129,6 +129,10 @@ input, select { width: 100%; border: 1px solid #cbd8df; border-radius: 12px; pad
 input:focus, select:focus { border-color: #367084; box-shadow: 0 0 0 3px rgba(54, 112, 132, .13); }
 .checkbox-row { display: flex; gap: 10px; align-items: flex-start; color: #445f71; font-size: 13px; line-height: 1.4; }
 .checkbox-row input { width: 18px; height: 18px; margin-top: 1px; }
+.cause-contribution-notice { margin: 16px 0; padding: 16px; border: 1px solid #e2c375; border-radius: 14px; background: #fff8df; color: #5f4a13; }
+.cause-contribution-notice strong { display: block; color: #694711; font-size: 17px; }
+.cause-contribution-notice p { margin: 8px 0 0; line-height: 1.5; }
+.cause-contribution-notice b { color: #3f310e; }
 .error-box, .success-box { padding: 14px; border-radius: 13px; }
 .error-box { background: #fff0f0; border: 1px solid #efc4c4; color: #8d2b2b; }
 .success-box { display: grid; gap: 5px; background: #eef8f1; border: 1px solid #c7e6d0; color: #245838; }
