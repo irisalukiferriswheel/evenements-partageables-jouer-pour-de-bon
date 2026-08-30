@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createGuestRegistration, startCheckout } from './api.js'
 import { getGuestRegistrationHandoff } from './registrationHandoff.js'
+import { getCauseContributionBalance } from './causeContributionBalance.js'
 
 const initialForm = {
   first_name: '',
@@ -21,6 +22,7 @@ export default function RegistrationPanel({ event, onClose }) {
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const isMinor = form.age_group === 'under-18'
+  const contributionBalance = getCauseContributionBalance(event)
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -84,6 +86,10 @@ export default function RegistrationPanel({ event, onClose }) {
         <p>
           L’inscription utilise ton courriel pour créer ou retrouver un dossier joueur privé. Il ne devient pas un profil public tant que tu ne l’actives pas plus tard sur le site.
         </p>
+
+        {contributionBalance.incomplete ? (
+          <CauseContributionNotice balance={contributionBalance} />
+        ) : null}
 
         {status === 'success' ? (
           <div className="success-box">
@@ -215,5 +221,50 @@ export default function RegistrationPanel({ event, onClose }) {
         )}
       </section>
     </div>
+  )
+}
+
+
+function formatMoney(amount, currency) {
+  return Number(amount || 0).toLocaleString('fr-CA', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  })
+}
+
+function formatDeadline(value) {
+  if (!value) return '[date limite]'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('fr-CA', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function CauseContributionNotice({ balance }) {
+  const required = formatMoney(balance.requiredCauseContribution, balance.currency)
+  const credited = formatMoney(balance.creditedCauseContribution, balance.currency)
+  const remaining = formatMoney(balance.remainingRegistrationBalance, balance.currency)
+  const causePart = formatMoney(balance.causeDifference, balance.currency)
+  const winnerPart = formatMoney(balance.winnerAllocationDifference, balance.currency)
+
+  return (
+    <section className="cause-contribution-notice" aria-labelledby="cause-contribution-title">
+      <strong id="cause-contribution-title">Contribution à la cause incomplète</strong>
+      <p>
+        Chaque joueur de cet événement contribuant à cette cause doit verser <b>{required}</b> à la cause.
+        Tu as contribué <b>{credited}</b>.
+      </p>
+      <p>
+        Ton solde d’inscription restant est de <b>{remaining}</b> : <b>{causePart}</b> pour la cause
+        et <b>{winnerPart}</b> pour la part destinée aux joueurs gagnants.
+      </p>
+      <p>
+        Le paiement est requis avant le <b>{formatDeadline(balance.paymentDeadline)}</b> pour participer
+        à cet événement et au résultat de l’objectif de financement une fois celui-ci atteint.
+      </p>
+    </section>
   )
 }
