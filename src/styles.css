@@ -138,6 +138,8 @@ input:focus, select:focus { border-color: #367084; box-shadow: 0 0 0 3px rgba(54
 .cause-contribution-notice strong { display: block; color: #694711; font-size: 17px; }
 .cause-contribution-notice p { margin: 8px 0 0; line-height: 1.5; }
 .cause-contribution-notice b { color: #3f310e; }
+.payment-handoff { display: grid; gap: 12px; }
+.payment-handoff p { margin: 0; color: #425c6e; line-height: 1.5; }
 .error-box, .success-box { padding: 14px; border-radius: 13px; }
 .error-box { background: #fff0f0; border: 1px solid #efc4c4; color: #8d2b2b; }
 .success-box { display: grid; gap: 5px; background: #eef8f1; border: 1px solid #c7e6d0; color: #245838; }

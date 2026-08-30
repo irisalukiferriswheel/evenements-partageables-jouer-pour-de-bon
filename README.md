@@ -12,6 +12,7 @@ Application React + Vite qui transforme les événements Jouer Pour de Bon en ca
 - Le QR et le partage pointent vers la carte publique autonome, jamais vers une vue Wix organisateur/admin intégrée.
 - L'inscription est conçue guest-first; le backend doit ensuite créer ou rattacher le joueur et permettre l'activation ultérieure du profil.
 - Les vues organisateur/admin utilisent le même composant de carte, mais leurs données privées sont fournies par la page Wix hôte plutôt que par des secrets placés dans l'iframe.
+- Zeffy est le seul fournisseur de paiement prévu. Le navigateur accepte uniquement un lien de paiement HTTPS Zeffy créé par l'API JPDB et ne contient aucun secret de paiement.
 
 ## Lancer en local
 
@@ -42,7 +43,7 @@ L'inscription rapide reste désactivée tant que le backend guest-first n'est pa
 VITE_GUEST_REGISTRATION_ENABLED=false
 ```
 
-Passer ce drapeau à `true` seulement après déploiement et validation de `POST /v1/calendar/events/:eventId/registrations` et du checkout invité associé. Cela permet de déployer les cartes/QR sans envoyer les visiteurs vers un endpoint inexistant.
+Passer ce drapeau à `true` seulement après déploiement et validation de `POST /v1/calendar/events/:eventId/registrations`, du checkout invité Zeffy associé et de la réconciliation des paiements confirmés. Cela permet de déployer les cartes/QR sans envoyer les visiteurs vers un endpoint inexistant.
 
 ## Modes d'affichage
 
@@ -162,6 +163,6 @@ Wix n'a besoin que d'un seul embed/iframe pour chaque contexte de page, pas d'un
 - exécuter le diagnostic du schéma `players` sur le projet Supabase réel;
 - faire évoluer le modèle canonique `registrations` pour une identité joueur guest puis revendicable;
 - relier définitivement l'événement à un `cause_id` canonique au moment de la création/publication;
-- brancher le fournisseur de paiement réel;
+- terminer et valider l'intégration backend Zeffy (checkout hébergé, webhooks signés, idempotence et réconciliation) avant d'activer l'inscription invitée;
 - terminer le flux mineur/consentement parental;
 - ajouter métadonnées Open Graph/social previews et images sociales exportables.

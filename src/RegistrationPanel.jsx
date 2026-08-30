@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createGuestRegistration, startCheckout } from './api.js'
 import { getGuestRegistrationHandoff } from './registrationHandoff.js'
 import { getCauseContributionBalance } from './causeContributionBalance.js'
@@ -22,9 +22,22 @@ export default function RegistrationPanel({ event, language = 'fr', onClose }) {
   const [form, setForm] = useState(initialForm)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
+  const [serverBalance, setServerBalance] = useState(null)
+  const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState('')
+  const titleId = useId()
+  const closeButtonRef = useRef(null)
   const t = translations[language]
   const isMinor = form.age_group === 'under-18'
-  const contributionBalance = getCauseContributionBalance(event)
+  const contributionBalance = getCauseContributionBalance(event, serverBalance)
+
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+    const closeOnEscape = (keyboardEvent) => {
+      if (keyboardEvent.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -37,10 +50,31 @@ export default function RegistrationPanel({ event, language = 'fr', onClose }) {
 
     try {
       const payload = await createGuestRegistration(event.id, form, language)
+      const data = payload?.data ?? payload
+      const registration = data?.registration ?? data
+      const balanceSource =
+        data?.contributionBalance ??
+        data?.contribution_balance ??
+        registration?.contributionBalance ??
+        registration?.contribution_balance ??
+        registration
+      const returnedBalance = getCauseContributionBalance(event, balanceSource)
+      setServerBalance(returnedBalance.available ? balanceSource : null)
       const handoff = getGuestRegistrationHandoff(payload)
 
       if (handoff.kind === 'redirect') {
+        if (returnedBalance.incomplete) {
+          setPendingCheckoutUrl(handoff.checkoutUrl)
+          setStatus('awaiting_payment')
+          return
+        }
         window.location.assign(handoff.checkoutUrl)
+        return
+      }
+
+      if (handoff.kind === 'payment_blocked') {
+        setError(t.paymentProviderBlocked)
+        setStatus('error')
         return
       }
 
@@ -50,17 +84,22 @@ export default function RegistrationPanel({ event, language = 'fr', onClose }) {
       }
 
       const checkoutPayload = await startCheckout(handoff.registrationId, handoff.guestToken, language)
-      const checkoutData = checkoutPayload?.data ?? checkoutPayload
-      const checkoutUrl =
-        checkoutData?.checkout?.checkoutUrl ??
-        checkoutData?.checkout?.checkout_url ??
-        checkoutData?.checkout_url ??
-        checkoutData?.url ??
-        null
+      const checkoutHandoff = getGuestRegistrationHandoff(checkoutPayload)
 
-      if (checkoutUrl) {
-        window.location.assign(checkoutUrl)
+      if (checkoutHandoff.kind === 'redirect') {
+        if (returnedBalance.incomplete) {
+          setPendingCheckoutUrl(checkoutHandoff.checkoutUrl)
+          setStatus('awaiting_payment')
+          return
+        }
+        window.location.assign(checkoutHandoff.checkoutUrl)
         return
+      }
+
+      if (checkoutHandoff.kind === 'payment_blocked') {
+          setError(t.paymentProviderBlocked)
+          setStatus('error')
+          return
       }
 
       setStatus('success')
@@ -71,17 +110,17 @@ export default function RegistrationPanel({ event, language = 'fr', onClose }) {
   }
 
   return (
-    <div className="registration-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="registration-backdrop" onMouseDown={onClose}>
       <section
         className="registration-panel"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="registration-title"
+        aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <button className="registration-panel__close" onClick={onClose} aria-label={t.close}>×</button>
+        <button ref={closeButtonRef} type="button" className="registration-panel__close" onClick={onClose} aria-label={t.close}>×</button>
         <div className="event-card__eyebrow">{t.quickRegistration}</div>
-        <h2 id="registration-title">{event.title}</h2>
+        <h2 id={titleId}>{event.title}</h2>
         <p className="registration-panel__cause">❤️ {event.cause?.name || t.eventCause}</p>
         <p>{t.privacy}</p>
 
@@ -89,7 +128,14 @@ export default function RegistrationPanel({ event, language = 'fr', onClose }) {
           <CauseContributionNotice balance={contributionBalance} language={language} />
         ) : null}
 
-        {status === 'success' ? (
+        {status === 'awaiting_payment' ? (
+          <div className="payment-handoff" aria-live="polite">
+            <p>{t.zeffyPaymentReady}</p>
+            <button type="button" className="button button--primary button--wide" onClick={() => window.location.assign(pendingCheckoutUrl)}>
+              {t.continueZeffyPayment}
+            </button>
+          </div>
+        ) : status === 'success' ? (
           <div className="success-box">
             <strong>{t.received}</strong>
             <span>{t.claimLater}</span>
@@ -146,7 +192,7 @@ export default function RegistrationPanel({ event, language = 'fr', onClose }) {
               </label>
             )}
 
-            {error ? <div className="error-box">{error}</div> : null}
+            {error ? <div className="error-box" role="alert">{error}</div> : null}
 
             <button className="button button--primary button--wide" disabled={status === 'submitting'}>
               {status === 'submitting' ? t.processing : t.continuePayment}
@@ -189,8 +235,8 @@ function CauseContributionNotice({ balance, language }) {
   const winnerPart = formatMoney(balance.winnerAllocationDifference, balance.currency, t.locale)
 
   return (
-    <section className="cause-contribution-notice" aria-labelledby="cause-contribution-title">
-      <strong id="cause-contribution-title">{t.contributionIncomplete}</strong>
+    <section className="cause-contribution-notice" aria-live="polite">
+      <strong>{t.contributionIncomplete}</strong>
       <p>{t.contributionRule(required, credited)}</p>
       <p>{t.balanceRule(remaining, causePart, winnerPart)}</p>
       <p>{t.deadlineRule(formatDeadline(balance.paymentDeadline, t))}</p>
