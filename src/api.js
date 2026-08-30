@@ -148,7 +148,7 @@ export function normalizeEvent(payload) {
   }
 }
 
-export async function createGuestRegistration(eventId, participant) {
+export async function createGuestRegistration(eventId, participant, language = 'fr') {
   if (!GUEST_REGISTRATION_ENABLED) {
     throw new Error('Les inscriptions invitées ne sont pas encore activées.')
   }
@@ -161,6 +161,7 @@ export async function createGuestRegistration(eventId, participant) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      'Accept-Language': language === 'en' ? 'en-CA' : 'fr-CA',
     },
     body: JSON.stringify({
       participant,
@@ -176,7 +177,7 @@ export async function createGuestRegistration(eventId, participant) {
   return response.json()
 }
 
-export async function startCheckout(registrationId, guestToken) {
+export async function startCheckout(registrationId, guestToken, language = 'fr') {
   if (!GUEST_REGISTRATION_ENABLED) {
     throw new Error('Les inscriptions invitées ne sont pas encore activées.')
   }
@@ -192,6 +193,7 @@ export async function startCheckout(registrationId, guestToken) {
     headers: {
       Accept: 'application/json',
       'X-JPDB-Guest-Token': guestToken,
+      'Accept-Language': language === 'en' ? 'en-CA' : 'fr-CA',
     },
   })
 
