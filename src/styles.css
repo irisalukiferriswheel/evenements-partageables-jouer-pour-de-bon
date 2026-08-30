@@ -38,6 +38,11 @@ button { cursor: pointer; }
 
 .page-header h1 { margin: 6px 0 0; font-size: clamp(28px, 4vw, 46px); color: #0f2f4f; }
 .page-header__badge { background: #fff; border: 1px solid #ccd9e1; padding: 8px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+.page-header__controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.language-switcher { display: flex; gap: 4px; padding: 4px; border: 1px solid #bfcfd8; border-radius: 999px; background: #fff; }
+.language-switcher button { min-width: 38px; border: 0; border-radius: 999px; padding: 6px 9px; color: #37566b; background: transparent; font-size: 12px; font-weight: 850; }
+.language-switcher button.is-active { color: #fff; background: #0f2f4f; }
+.language-switcher button:focus-visible { outline: 3px solid #e6a933; outline-offset: 2px; }
 
 .event-summary {
   width: min(1100px, 100%);
@@ -144,6 +149,7 @@ input:focus, select:focus { border-color: #367084; box-shadow: 0 0 0 3px rgba(54
 @media (max-width: 620px) {
   .page-shell { padding: 16px 12px 36px; }
   .page-header { align-items: flex-start; flex-direction: column; }
+  .page-header__controls { width: 100%; justify-content: space-between; }
   .event-card { border-radius: 20px; }
   .event-card__body { padding: 18px; }
   .qr-panel { align-items: center; }
