@@ -30,3 +30,16 @@ test('returns an empty string when no event id is available', () => {
     '',
   )
 })
+
+
+test('preserves the site-wide language in shared and QR links', () => {
+  assert.equal(
+    buildStandaloneCardUrl({
+      eventId: 'evt-123',
+      baseUrl: 'https://example.com/events/',
+      language: 'en',
+      registrationIntent: true,
+    }),
+    'https://example.com/events/?event=evt-123&lang=en&register=1',
+  )
+})
