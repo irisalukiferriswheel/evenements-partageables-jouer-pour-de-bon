@@ -17,18 +17,16 @@ export function hasCanonicalOrganizerCause(event) {
   )
 }
 
-export function eventAcceptsGuestRegistration(event) {
+export function eventAcceptsMemberRegistration(event) {
   if (!event) return false
 
   const seatsLeft = getSeatsLeft(event)
   const hasCompetition = Boolean(event.competition_id)
-  const hasOrganizerCause = hasCanonicalOrganizerCause(event)
   const hasCapacity = seatsLeft === null || seatsLeft === undefined || Number(seatsLeft) > 0
 
   return (
     event.registration_open !== false &&
     hasCompetition &&
-    hasOrganizerCause &&
     hasCapacity
   )
 }
@@ -36,10 +34,6 @@ export function eventAcceptsGuestRegistration(event) {
 export function getRegistrationUnavailableReason(event) {
   if (!event) return 'Événement indisponible.'
   if (!event.competition_id) return 'Cet événement n’est pas encore relié à une inscription.'
-  if (!event.cause?.name?.trim()) return 'La cause choisie par l’organisateur est manquante.'
-  if (!hasCanonicalOrganizerCause(event)) {
-    return 'La cause de cet événement doit être reliée à une cause approuvée dans Jouer Pour de Bon.'
-  }
   if (event.registration_open === false) return 'Les inscriptions sont fermées pour cet événement.'
 
   const seatsLeft = getSeatsLeft(event)

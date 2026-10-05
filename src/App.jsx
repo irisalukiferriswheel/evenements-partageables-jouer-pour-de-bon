@@ -6,7 +6,7 @@ import {
   fetchEvents,
   getEventIdFromLocation,
   isApiConfigured,
-  isGuestRegistrationEnabled,
+  isMemberRegistrationEnabled,
   isRegistrationIntentFromLocation,
   normalizeEvent,
 } from './api.js'
@@ -16,7 +16,7 @@ import {
   requestHostEvents,
   subscribeToHostEvents,
 } from './hostBridge.js'
-import { eventAcceptsGuestRegistration } from './registrationState.js'
+import { eventAcceptsMemberRegistration } from './registrationState.js'
 import { mockEvent } from './mockEvent.js'
 import {
   getViewPresentation,
@@ -32,7 +32,7 @@ export default function App() {
   const [demoMode, setDemoMode] = useState(false)
   const [waitingForHost, setWaitingForHost] = useState(false)
   const [hostScope, setHostScope] = useState(null)
-  const guestRegistrationEnabled = isGuestRegistrationEnabled()
+  const memberRegistrationEnabled = isMemberRegistrationEnabled()
   const displayEvents = useMemo(() => sortEventsForDisplay(events), [events])
   const view = getViewPresentation(hostScope)
   const summary = useMemo(() => summarizeEvents(displayEvents), [displayEvents])
@@ -85,11 +85,11 @@ export default function App() {
           setEvents(availableEvents)
 
           if (
-            guestRegistrationEnabled &&
+            memberRegistrationEnabled &&
             isRegistrationIntentFromLocation() &&
             eventId &&
             availableEvents.length === 1 &&
-            eventAcceptsGuestRegistration(availableEvents[0])
+            (eventAcceptsMemberRegistration(availableEvents[0]) || new URLSearchParams(window.location.search).get('memberFlow') === '1')
           ) {
             setRegistrationEvent(availableEvents[0])
           }
@@ -108,7 +108,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [guestRegistrationEnabled])
+  }, [memberRegistrationEnabled])
 
   if (loading) {
     return (
@@ -158,13 +158,13 @@ export default function App() {
           <EventCard
             key={event.id}
             event={event}
-            guestRegistrationEnabled={guestRegistrationEnabled}
+            memberRegistrationEnabled={memberRegistrationEnabled}
             onRegister={() => setRegistrationEvent(event)}
           />
         ))}
       </section>
 
-      {registrationEvent && guestRegistrationEnabled ? (
+      {registrationEvent && memberRegistrationEnabled ? (
         <RegistrationPanel event={registrationEvent} onClose={() => setRegistrationEvent(null)} />
       ) : null}
     </main>

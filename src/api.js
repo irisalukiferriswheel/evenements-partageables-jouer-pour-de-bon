@@ -1,9 +1,9 @@
-import { makeApiError } from './apiError.js'
+import { buildMemberRegistrationUrl } from './memberRegistrationBridge.js'
 import { buildStandaloneCardUrl } from './cardUrl.js'
 
 const API_BASE_URL = (import.meta.env.VITE_JPDB_API_BASE_URL || '').replace(/\/$/, '')
 const PUBLIC_CARD_BASE_URL = (import.meta.env.VITE_PUBLIC_CARD_BASE_URL || '').trim()
-const GUEST_REGISTRATION_ENABLED = import.meta.env.VITE_GUEST_REGISTRATION_ENABLED === 'true'
+const MEMBER_REGISTRATION_ENABLED = import.meta.env.VITE_MEMBER_REGISTRATION_ENABLED === 'true'
 
 export function getEventIdFromLocation() {
   const params = new URLSearchParams(window.location.search)
@@ -24,20 +24,15 @@ export function buildPublicCardUrl(eventId) {
 }
 
 export function buildRegistrationUrl(eventId) {
-  return buildStandaloneCardUrl({
-    eventId,
-    baseUrl: PUBLIC_CARD_BASE_URL,
-    currentUrl: window.location.href,
-    registrationIntent: true,
-  })
+  return buildMemberRegistrationUrl(eventId)
 }
 
 export function isApiConfigured() {
   return Boolean(API_BASE_URL)
 }
 
-export function isGuestRegistrationEnabled() {
-  return GUEST_REGISTRATION_ENABLED
+export function isMemberRegistrationEnabled() {
+  return MEMBER_REGISTRATION_ENABLED
 }
 
 export async function fetchEvent(eventId = getEventIdFromLocation()) {
@@ -94,8 +89,6 @@ export function normalizeEvent(payload) {
     event.card_url ||
     buildPublicCardUrl(id)
   const registrationUrl =
-    event.registrationUrl ||
-    event.registration_url ||
     buildRegistrationUrl(id)
 
   return {
@@ -128,59 +121,4 @@ export function normalizeEvent(payload) {
     event_page_url: event.publicUrl ?? event.public_url ?? null,
     cause,
   }
-}
-
-export async function createGuestRegistration(eventId, participant) {
-  if (!GUEST_REGISTRATION_ENABLED) {
-    throw new Error('Les inscriptions invitées ne sont pas encore activées.')
-  }
-  if (!API_BASE_URL) {
-    throw new Error('API non configurée')
-  }
-
-  const response = await fetch(`${API_BASE_URL}/v1/calendar/events/${encodeURIComponent(eventId)}/registrations`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      participant,
-      source: 'shareable_event_card',
-    }),
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null)
-    throw makeApiError(payload, response.status, `Inscription impossible (${response.status})`)
-  }
-
-  return response.json()
-}
-
-export async function startCheckout(registrationId, guestToken) {
-  if (!GUEST_REGISTRATION_ENABLED) {
-    throw new Error('Les inscriptions invitées ne sont pas encore activées.')
-  }
-  if (!API_BASE_URL) {
-    throw new Error('API non configurée')
-  }
-  if (!guestToken || typeof guestToken !== 'string') {
-    throw new Error('Autorisation de paiement invitée manquante.')
-  }
-
-  const response = await fetch(`${API_BASE_URL}/v1/registrations/${encodeURIComponent(registrationId)}/checkout`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'X-JPDB-Guest-Token': guestToken,
-    },
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null)
-    throw makeApiError(payload, response.status, `Paiement impossible (${response.status})`)
-  }
-
-  return response.json()
 }
