@@ -1,6 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react'
 import {
-  eventAcceptsGuestRegistration,
+  eventAcceptsMemberRegistration,
   getRegistrationUnavailableReason,
   getSeatsLeft,
 } from './registrationState.js'
@@ -22,10 +22,10 @@ function formatMoney(amount, currency = 'CAD') {
   }).format(Number(amount || 0))
 }
 
-export default function EventCard({ event, onRegister, guestRegistrationEnabled = false }) {
+export default function EventCard({ event, onRegister, memberRegistrationEnabled = false }) {
   const seatsLeft = getSeatsLeft(event)
-  const eventAcceptsRegistrations = eventAcceptsGuestRegistration(event)
-  const registrationAvailable = eventAcceptsRegistrations && guestRegistrationEnabled
+  const eventAcceptsRegistrations = eventAcceptsMemberRegistration(event)
+  const registrationAvailable = eventAcceptsRegistrations && memberRegistrationEnabled
   const registrationUrl = event.registration_url || event.public_url
   const unavailableReason = getRegistrationUnavailableReason(event)
 
@@ -76,7 +76,7 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
             <div>
               <strong>{event.cause?.name || 'Cause indisponible'}</strong>
               {event.cause?.description ? <p>{event.cause.description}</p> : null}
-              {!event.cause?.name ? <p>Inscription désactivée tant que la cause de l’événement n’est pas définie.</p> : null}
+              {!event.cause?.name ? <p>La cause sera précisée par l’organisateur.</p> : null}
             </div>
           </div>
         </section>
@@ -99,8 +99,8 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
           <div>
             <strong>{eventAcceptsRegistrations ? 'Scanne pour t’inscrire' : 'Scanne pour voir l’événement'}</strong>
             <span>{eventAcceptsRegistrations ? 'Scan to register' : 'Scan to view event'}</span>
-            {!guestRegistrationEnabled && eventAcceptsRegistrations ? (
-              <small>L’inscription rapide sera activée dès que le backend guest-first sera déployé.</small>
+            {!memberRegistrationEnabled && eventAcceptsRegistrations ? (
+              <small>Les inscriptions en ligne seront bientôt disponibles.</small>
             ) : null}
             {!eventAcceptsRegistrations && unavailableReason ? <small>{unavailableReason}</small> : null}
           </div>
@@ -114,14 +114,14 @@ export default function EventCard({ event, onRegister, guestRegistrationEnabled 
             title={
               !eventAcceptsRegistrations
                 ? unavailableReason
-                : !guestRegistrationEnabled
-                  ? 'L’inscription rapide sera activée avec le backend guest-first.'
+                : !memberRegistrationEnabled
+                  ? 'Les inscriptions en ligne seront bientôt disponibles.'
                   : undefined
             }
           >
             {!eventAcceptsRegistrations
               ? 'Inscription indisponible'
-              : guestRegistrationEnabled
+              : memberRegistrationEnabled
                 ? 'S’inscrire / Register'
                 : 'Inscription bientôt / Coming soon'}
           </button>

@@ -1,218 +1,84 @@
-import { useState } from 'react'
-import { createGuestRegistration, startCheckout } from './api.js'
-import { getGuestRegistrationHandoff } from './registrationHandoff.js'
-
-const initialForm = {
-  first_name: '',
-  last_name: '',
-  email: '',
-  phone: '',
-  city: '',
-  age_group: '18+',
-  waiver_accepted: false,
-  guardian_name: '',
-  guardian_email: '',
-  guardian_phone: '',
-  guardian_consent: false,
-}
+import { useEffect, useRef, useState } from 'react'
+import { eventAcceptsMemberRegistration } from './registrationState.js'
+import { buildMemberRegistrationUrl, isVerifiedCheckout, requestMemberRegistration } from './memberRegistrationBridge.js'
 
 export default function RegistrationPanel({ event, onClose }) {
-  const [form, setForm] = useState(initialForm)
-  const [status, setStatus] = useState('idle')
-  const [error, setError] = useState('')
-  const isMinor = form.age_group === 'under-18'
-
-  function update(field, value) {
-    setForm((current) => ({ ...current, [field]: value }))
+  const [busy, setBusy] = useState(false)
+  const inFlight = useRef(null)
+  const panel = useRef(null)
+  useEffect(() => {
+    const previousFocus = document.activeElement
+    panel.current?.querySelector('button')?.focus()
+    return () => { inFlight.current?.abort(); previousFocus?.focus?.() }
+  }, [])
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); return }
+    if (e.key !== 'Tab') return
+    const elements = [...panel.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled)')]
+    const first = elements[0]
+    const last = elements[elements.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() }
+    if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() }
   }
-
-  async function submit(eventSubmit) {
-    eventSubmit.preventDefault()
-    setStatus('submitting')
-    setError('')
-
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
+  const memberFlow = new URLSearchParams(window.location.search).get('memberFlow') === '1' && window.parent !== window
+  const checkout = result?.checkout
+  const canPay = result?.status === 'pending_payment' && !result.paymentReviewRequired && isVerifiedCheckout(checkout)
+  async function request(action) {
+    if (inFlight.current) return
+    const controller = new AbortController()
+    inFlight.current = controller
+    setBusy(true); setError(null)
     try {
-      const payload = await createGuestRegistration(event.id, form)
-      const handoff = getGuestRegistrationHandoff(payload)
-
-      if (handoff.kind === 'redirect') {
-        window.location.assign(handoff.checkoutUrl)
-        return
-      }
-
-      if (handoff.kind !== 'guest_checkout') {
-        setStatus('success')
-        return
-      }
-
-      const checkoutPayload = await startCheckout(handoff.registrationId, handoff.guestToken)
-      const checkoutData = checkoutPayload?.data ?? checkoutPayload
-      const checkoutUrl =
-        checkoutData?.checkout?.checkoutUrl ??
-        checkoutData?.checkout?.checkout_url ??
-        checkoutData?.checkout_url ??
-        checkoutData?.url ??
-        null
-
-      if (checkoutUrl) {
-        window.location.assign(checkoutUrl)
-        return
-      }
-
-      setStatus('success')
-    } catch (err) {
-      setError(err.message || 'Une erreur est survenue.')
-      setStatus('error')
+      const origins = ['https://www.jouerpourdebon.ca']
+      if ((import.meta.env.VITE_TRUSTED_HOST_ORIGINS || '').split(',').map(s => s.trim()).includes('https://jouerpourdebon.ca')) origins.push('https://jouerpourdebon.ca')
+      setResult(await requestMemberRegistration(event.id, action, { origins, signal: controller.signal }))
+      setCopied(false)
+    } catch (err) { if (err.name !== 'AbortError') setError(err) }
+    finally {
+      inFlight.current = null
+      if (!controller.signal.aborted) setBusy(false)
     }
   }
-
+  async function copyReference() {
+    try { await navigator.clipboard.writeText(checkout.reference); setCopied(true); setCopyError(false) }
+    catch { setCopyError(true) }
+  }
   return (
     <div className="registration-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="registration-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="registration-title"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <button className="registration-panel__close" onClick={onClose} aria-label="Fermer">
-          ×
-        </button>
-        <div className="event-card__eyebrow">INSCRIPTION RAPIDE / QUICK REGISTRATION</div>
+      <section ref={panel} onKeyDown={handleKeyDown} className="registration-panel" role="dialog" aria-modal="true" aria-labelledby="registration-title" onMouseDown={e => e.stopPropagation()}>
+        <button className="registration-panel__close" onClick={onClose} aria-label="Fermer">×</button>
+        <div className="event-card__eyebrow">INSCRIPTION</div>
         <h2 id="registration-title">{event.title}</h2>
-        <p className="registration-panel__cause">❤️ {event.cause?.name || 'Cause de l’événement'}</p>
-        <p>
-          L’inscription utilise ton courriel pour créer ou retrouver un dossier joueur privé. Il ne devient pas un profil public tant que tu ne l’actives pas plus tard sur le site.
-        </p>
-
-        {status === 'success' ? (
-          <div className="success-box">
-            <strong>Inscription reçue.</strong>
-            <span>Ton dossier joueur pourra être réclamé et complété plus tard sur le site.</span>
+        <p>{[event.city,event.venue_name].filter(Boolean).join(' · ')}</p>
+        <p><strong>{Number(event.entry_fee)===0?'Gratuit':new Intl.NumberFormat('fr-CA',{style:'currency',currency:event.currency||'CAD'}).format(event.entry_fee)}</strong>{Number.isInteger(event.spots_left)&&` · ${event.spots_left} place(s) disponible(s)`}</p>
+        {event.cause?.name&&<p>Cause soutenue : {event.cause.name}</p>}
+        <p>Connecte-toi ou crée ton compte Jouer Pour de Bon pour t’inscrire et retrouver ta participation dans ton espace privé.</p>
+        {!memberFlow ? <a className="button button--primary" href={buildMemberRegistrationUrl(event.id)} target="_top">Se connecter ou créer un compte</a> : <>
+          {!result && eventAcceptsMemberRegistration(event) && <button className="button button--primary" disabled={busy} onClick={() => request('register')}>{busy ? 'Connexion en cours…' : 'Continuer avec mon compte'}</button>}
+          {!result && <button className="button button--secondary" disabled={busy} onClick={() => request('status')}>{busy ? 'Vérification…' : 'Retrouver mon inscription'}</button>}
+          <div aria-live="polite">
+            {result?.status === 'confirmed' && <div className="success-box"><strong>Inscription confirmée.</strong><span>Retrouve cet événement dans ton espace joueur.</span></div>}
+            {result?.status === 'pending_payment' && <>
+              <p><strong>Paiement en attente.</strong> Ton inscription sera confirmée après vérification du paiement.</p>
+              {result.paymentReviewRequired && <p>Paiement à vérifier — contacte l’organisateur avant de payer à nouveau.</p>}
+              {canPay ? <>
+                <p>Montant : <strong>{new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(checkout.amount)}</strong></p>
+                <label>Référence d’inscription<input readOnly value={checkout.reference} onFocus={e => e.target.select()} /></label>
+                <button className="button button--secondary" onClick={copyReference}>{copied ? 'Référence copiée' : 'Copier la référence'}</button>
+                {copyError && <p>Sélectionne et copie la référence ci-dessus.</p>}
+                <p>Sur Zeffy, choisis un seul billet au montant indiqué et colle cette référence dans le champ « Référence d’inscription JPDB ». Privilégie le paiement par carte. Reviens ici après ton paiement.</p>
+                <a className="button button--primary" href={checkout.url} target="_blank" rel="noopener noreferrer" onClick={e => { if (!isVerifiedCheckout(checkout)) { e.preventDefault(); request('status') } }}>Payer par carte avec Zeffy</a>
+              </> : !result.paymentReviewRequired && <p>Le lien de paiement n’est pas disponible ou a expiré. Vérifie ton inscription pour obtenir les prochaines étapes.</p>}
+              <button className="button button--secondary" disabled={busy} onClick={() => request('status')}>{busy ? 'Vérification…' : 'Vérifier mon inscription'}</button>
+            </>}
+            {['cancelled', 'refunded'].includes(result?.status) && <p>{result.status === 'cancelled' ? 'Cette inscription a été annulée.' : 'Cette inscription a été remboursée.'}</p>}
+            {error && <div className="error-box" role="alert">{error.message}{error.code === 'PLAYER_PROFILE_REQUIRED' && <p><a href={buildMemberRegistrationUrl(event.id, true)} target="_top">Compléter mon profil joueur</a></p>}{['INVITATION_REQUIRED','INVITATION_NOT_ACCEPTED'].includes(error.code) && <p><a href={buildMemberRegistrationUrl(event.id,true)} target="_top">Voir et accepter mes invitations</a></p>}</div>}
           </div>
-        ) : (
-          <form onSubmit={submit} className="registration-form">
-            <div className="form-grid">
-              <label>
-                Prénom
-                <input
-                  autoComplete="given-name"
-                  required
-                  value={form.first_name}
-                  onChange={(e) => update('first_name', e.target.value)}
-                />
-              </label>
-              <label>
-                Nom
-                <input
-                  autoComplete="family-name"
-                  required
-                  value={form.last_name}
-                  onChange={(e) => update('last_name', e.target.value)}
-                />
-              </label>
-              <label>
-                Courriel
-                <input
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => update('email', e.target.value)}
-                />
-              </label>
-              <label>
-                Téléphone
-                <input
-                  type="tel"
-                  autoComplete="tel"
-                  required
-                  value={form.phone}
-                  onChange={(e) => update('phone', e.target.value)}
-                />
-              </label>
-              <label>
-                Ville
-                <input
-                  autoComplete="address-level2"
-                  value={form.city}
-                  onChange={(e) => update('city', e.target.value)}
-                />
-              </label>
-              <label>
-                Âge
-                <select value={form.age_group} onChange={(e) => update('age_group', e.target.value)}>
-                  <option value="18+">18+</option>
-                  <option value="under-18">Moins de 18 ans</option>
-                </select>
-              </label>
-            </div>
-
-            {isMinor ? (
-              <>
-                <div className="error-box">
-                  L’inscription d’un mineur doit être confirmée par un parent ou tuteur.
-                </div>
-                <div className="form-grid">
-                  <label>
-                    Parent ou tuteur
-                    <input
-                      autoComplete="name"
-                      required
-                      value={form.guardian_name}
-                      onChange={(e) => update('guardian_name', e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Courriel du parent/tuteur
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={form.guardian_email}
-                      onChange={(e) => update('guardian_email', e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Téléphone du parent/tuteur
-                    <input
-                      type="tel"
-                      autoComplete="tel"
-                      required
-                      value={form.guardian_phone}
-                      onChange={(e) => update('guardian_phone', e.target.value)}
-                    />
-                  </label>
-                </div>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    required
-                    checked={form.guardian_consent}
-                    onChange={(e) => update('guardian_consent', e.target.checked)}
-                  />
-                  <span>Je suis le parent ou tuteur et j’autorise cette inscription selon les règles applicables à l’événement.</span>
-                </label>
-              </>
-            ) : (
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  required
-                  checked={form.waiver_accepted}
-                  onChange={(e) => update('waiver_accepted', e.target.checked)}
-                />
-                <span>J’accepte les règles et la décharge de participation applicables à cet événement.</span>
-              </label>
-            )}
-
-            {error ? <div className="error-box">{error}</div> : null}
-
-            <button className="button button--primary button--wide" disabled={status === 'submitting'}>
-              {status === 'submitting' ? 'Traitement…' : 'Continuer vers le paiement'}
-            </button>
-          </form>
-        )}
+        </>}
       </section>
     </div>
   )

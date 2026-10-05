@@ -147,3 +147,14 @@ input:focus, select:focus { border-color: #367084; box-shadow: 0 0 0 3px rgba(54
   .event-card__actions, .form-grid { grid-template-columns: 1fr; }
   .capacity-line { flex-direction: column; gap: 4px; }
 }
+
+/* Member registration actions stay readable when the checkout instructions wrap. */
+.registration-panel { line-height: 1.5; }
+.registration-panel h2 { padding-right: 28px; overflow-wrap: anywhere; }
+.registration-panel .button { display: inline-flex; align-items: center; justify-content: center; margin: 6px 8px 6px 0; text-align: center; text-decoration: none; }
+.registration-panel label { display: grid; gap: 6px; }
+.registration-panel .button:focus-visible, .registration-panel__close:focus-visible { outline: 3px solid #367084; outline-offset: 3px; }
+@media (max-width: 420px) {
+  .registration-panel { padding: 22px 18px; }
+  .registration-panel .button { width: 100%; margin-right: 0; }
+}

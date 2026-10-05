@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  eventAcceptsGuestRegistration,
+  eventAcceptsMemberRegistration,
   getRegistrationUnavailableReason,
   getSeatsLeft,
   hasCanonicalOrganizerCause,
@@ -41,43 +41,20 @@ test('uses API-provided spots_left when capacity is not exposed', () => {
   )
 })
 
-test('allows guest registration only when competition, canonical organizer cause, registration state and capacity are valid', () => {
-  const event = registrableEvent()
-  assert.equal(hasCanonicalOrganizerCause(event), true)
-  assert.equal(eventAcceptsGuestRegistration(event), true)
+test('allows member flow with cause name only; server validates eligibility', () => {
+  const event = registrableEvent({ cause: { name: 'Cause choisie' } })
+  assert.equal(eventAcceptsMemberRegistration(event), true)
+  assert.equal(getRegistrationUnavailableReason(event), '')
 })
 
-test('rejects an event with no organizer-selected cause', () => {
-  const event = registrableEvent({ cause: null })
-
-  assert.equal(eventAcceptsGuestRegistration(event), false)
-  assert.equal(
-    getRegistrationUnavailableReason(event),
-    'La cause choisie par l’organisateur est manquante.',
-  )
-})
-
-test('rejects a legacy free-text cause that is not linked to the approved cause database', () => {
-  const event = registrableEvent({
-    cause: {
-      id: null,
-      name: 'Ancienne cause texte libre',
-      canonical: false,
-    },
-  })
-
-  assert.equal(hasCanonicalOrganizerCause(event), false)
-  assert.equal(eventAcceptsGuestRegistration(event), false)
-  assert.equal(
-    getRegistrationUnavailableReason(event),
-    'La cause de cet événement doit être reliée à une cause approuvée dans Jouer Pour de Bon.',
-  )
+test('does not require a cause identifier omitted by the public API', () => {
+  assert.equal(eventAcceptsMemberRegistration(registrableEvent({ cause: null })), true)
 })
 
 test('rejects an event that is not linked to a competition', () => {
   const event = registrableEvent({ competition_id: null })
 
-  assert.equal(eventAcceptsGuestRegistration(event), false)
+  assert.equal(eventAcceptsMemberRegistration(event), false)
   assert.equal(
     getRegistrationUnavailableReason(event),
     'Cet événement n’est pas encore relié à une inscription.',
@@ -87,7 +64,7 @@ test('rejects an event that is not linked to a competition', () => {
 test('rejects a closed event', () => {
   const event = registrableEvent({ registration_open: false })
 
-  assert.equal(eventAcceptsGuestRegistration(event), false)
+  assert.equal(eventAcceptsMemberRegistration(event), false)
   assert.equal(
     getRegistrationUnavailableReason(event),
     'Les inscriptions sont fermées pour cet événement.',
@@ -97,13 +74,13 @@ test('rejects a closed event', () => {
 test('rejects a full event', () => {
   const event = registrableEvent({ capacity: 12, registration_count: 12 })
 
-  assert.equal(eventAcceptsGuestRegistration(event), false)
+  assert.equal(eventAcceptsMemberRegistration(event), false)
   assert.equal(getRegistrationUnavailableReason(event), 'Cet événement est complet.')
 })
 
 test('treats unknown capacity as registrable when the other invariants are satisfied', () => {
   const event = registrableEvent({ capacity: null, spots_left: null })
 
-  assert.equal(eventAcceptsGuestRegistration(event), true)
+  assert.equal(eventAcceptsMemberRegistration(event), true)
   assert.equal(getRegistrationUnavailableReason(event), '')
 })

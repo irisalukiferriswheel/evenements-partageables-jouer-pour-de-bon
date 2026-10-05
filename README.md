@@ -1,3 +1,5 @@
+> Current registration flow: see [account-first registration](docs/ACCOUNT_FIRST_REGISTRATION.md). Guest-first instructions below are historical and no longer activate registration.
+
 # Événements partageables — Jouer Pour de Bon
 
 Application React + Vite qui transforme les événements Jouer Pour de Bon en cartes partageables avec QR code visible, partage social et inscription rapide.
