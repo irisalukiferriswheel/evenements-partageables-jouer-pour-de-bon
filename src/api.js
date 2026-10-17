@@ -35,11 +35,11 @@ export function isMemberRegistrationEnabled() {
   return MEMBER_REGISTRATION_ENABLED
 }
 
-export async function fetchEvent(eventId = getEventIdFromLocation()) {
+export async function fetchEvent(eventId = getEventIdFromLocation(), language = 'fr') {
   if (!API_BASE_URL || !eventId) return null
 
   const response = await fetch(`${API_BASE_URL}/v1/calendar/events/${encodeURIComponent(eventId)}`, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'Accept-Language': language === 'en' ? 'en' : 'fr' },
   })
 
   if (!response.ok) {
@@ -50,11 +50,11 @@ export async function fetchEvent(eventId = getEventIdFromLocation()) {
   return normalizeEvent(payload)
 }
 
-export async function fetchEvents() {
+export async function fetchEvents(language = 'fr') {
   if (!API_BASE_URL) return []
 
   const response = await fetch(`${API_BASE_URL}/v1/calendar/events`, {
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json', 'Accept-Language': language === 'en' ? 'en' : 'fr' },
   })
 
   if (!response.ok) {

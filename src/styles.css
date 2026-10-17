@@ -158,3 +158,8 @@ input:focus, select:focus { border-color: #367084; box-shadow: 0 0 0 3px rgba(54
   .registration-panel { padding: 22px 18px; }
   .registration-panel .button { width: 100%; margin-right: 0; }
 }
+.page-header__controls,.language-switcher { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.language-switcher button { min-width:44px; min-height:44px; border:1px solid #367084; border-radius:8px; background:white; color:#163f36; cursor:pointer; }
+.language-switcher button[aria-pressed=true] { background:#163f36; color:white; }
+.language-switcher button:focus-visible { outline:3px solid #367084; outline-offset:3px; }
+.cause-contribution-notice { padding:16px; border:1px solid #b8cfbf; border-radius:12px; background:#f2f5f3; margin-block:16px; }

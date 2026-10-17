@@ -1,0 +1,1 @@
+export function withLanguage(value,language){try{const url=new URL(value);if(!['fr','en'].includes(language)||url.protocol!=='https:')return value;url.searchParams.set('lang',language);return url.href;}catch{return value;}}

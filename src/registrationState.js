@@ -1,3 +1,4 @@
+import {translations} from './translations.js';
 export function getSeatsLeft(event) {
   if (!event) return null
 
@@ -31,14 +32,15 @@ export function eventAcceptsMemberRegistration(event) {
   )
 }
 
-export function getRegistrationUnavailableReason(event) {
-  if (!event) return 'Événement indisponible.'
-  if (!event.competition_id) return 'Cet événement n’est pas encore relié à une inscription.'
-  if (event.registration_open === false) return 'Les inscriptions sont fermées pour cet événement.'
+export function getRegistrationUnavailableReason(event, language='fr') {
+  const t=translations[language];
+  if (!event) return t.unavailableEvent
+  if (!event.competition_id) return t.missingRegistrationLink
+  if (event.registration_open === false) return t.registrationClosed
 
   const seatsLeft = getSeatsLeft(event)
   if (seatsLeft !== null && seatsLeft !== undefined && Number(seatsLeft) <= 0) {
-    return 'Cet événement est complet.'
+    return t.eventFull
   }
 
   return ''

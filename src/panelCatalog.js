@@ -1,0 +1,33 @@
+// Draft payment copy requires owner review before publication.
+export const en={
+  "Fermer": "Close",
+  "INSCRIPTION": "REGISTRATION",
+  "Gratuit": "Free",
+  "place(s) disponible(s)": "spot(s) available",
+  "Cause soutenue :": "Supported cause:",
+  "Connecte-toi ou crée ton compte Jouer Pour de Bon pour t’inscrire et retrouver ta participation dans ton espace privé.": "Sign in or create your Playing for Good account to register and find your participation in your private area.",
+  "Se connecter ou créer un compte": "Sign in or create an account",
+  "Connexion en cours…": "Connecting…",
+  "Continuer avec mon compte": "Continue with my account",
+  "Vérification…": "Checking…",
+  "Retrouver mon inscription": "Find my registration",
+  "Inscription confirmée.": "Registration confirmed.",
+  "Retrouve cet événement dans ton espace joueur.": "Find this event in your player area.",
+  "Paiement en attente.": "Payment pending.",
+  "Ton inscription sera confirmée après vérification du paiement.": "Your registration will be confirmed after payment is verified.",
+  "Paiement à vérifier — contacte l’organisateur avant de payer à nouveau.": "Payment needs review — contact the organizer before paying again.",
+  "Montant :": "Amount:",
+  "Référence d’inscription": "Registration reference",
+  "Référence copiée": "Reference copied",
+  "Copier la référence": "Copy reference",
+  "Sélectionne et copie la référence ci-dessus.": "Select and copy the reference above.",
+  "Sur Zeffy, choisis un seul billet au montant indiqué et colle cette référence dans le champ « Référence d’inscription JPDB ». Privilégie le paiement par carte. Reviens ici après ton paiement.": "On Zeffy, choose one ticket at the shown amount and paste this reference into the ‘Référence d’inscription JPDB’ field. Prefer payment by card. Return here after paying.",
+  "Payer par carte avec Zeffy": "Pay by card with Zeffy",
+  "Le lien de paiement n’est pas disponible ou a expiré. Vérifie ton inscription pour obtenir les prochaines étapes.": "The payment link is unavailable or has expired. Check your registration for the next steps.",
+  "Vérifier mon inscription": "Check my registration",
+  "Cette inscription a été annulée.": "This registration was cancelled.",
+  "Cette inscription a été remboursée.": "This registration was refunded.",
+  "Compléter mon profil joueur": "Complete my player profile",
+  "Voir et accepter mes invitations": "View and accept my invitations"
+};
+export const translatePanel=(value,language)=>language==='en'?(en[value]||value):value;

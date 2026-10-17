@@ -1,24 +1,28 @@
-export function getViewPresentation(scope) {
+import { translations } from './translations.js'
+
+export function getViewPresentation(scope, language = 'fr') {
+  const t = translations[language] || translations.fr
+
   if (scope === 'organizer') {
     return {
-      title: 'Mes événements',
-      badge: 'QR + partage social',
-      empty: 'Vous n’avez aucun événement à afficher.',
+      title: t.organizerTitle,
+      badge: t.organizerBadge,
+      empty: t.organizerEmpty,
     }
   }
 
   if (scope === 'admin') {
     return {
-      title: 'Tous les événements',
-      badge: 'Vue administrateur',
-      empty: 'Aucun événement ne correspond à cette vue.',
+      title: t.adminTitle,
+      badge: t.adminBadge,
+      empty: t.adminEmpty,
     }
   }
 
   return {
-    title: 'Événements partageables',
-    badge: 'QR + partage social',
-    empty: 'Aucun événement à afficher.',
+    title: t.publicTitle,
+    badge: t.publicBadge,
+    empty: t.publicEmpty,
   }
 }
 
